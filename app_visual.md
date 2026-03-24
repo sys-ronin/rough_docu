@@ -1,7 +1,6 @@
+# Terminal Notes Visuals
 
 ---
-
-# Terminal Notes Screens
 
 ## Home Screen
 
@@ -20,23 +19,15 @@ Root Notebooks
 
 **Description**
 
-The home screen lists all root notebooks. Unlocked encrypted notebooks show `🔐` and counts. Locked encrypted notebooks show `🔒` without counts. Unencrypted notebooks show no icon and display counts.
-
-The header reads "Root Notebooks" (plural) or "Root Notebook" (singular) based on the number of notebooks.
-
-**Navigation:**  
-- `n` next page  
-- `p` previous page  
-- `j1`, `j2`, etc. jump to any notebook in the current path  
-- `jb` jump back to previous position
+The home screen lists all root notebooks. Unlocked encrypted notebooks show `🔐` and counts. Locked encrypted notebooks show `🔒` without counts. Unencrypted notebooks show no icon and display counts. Pagination: `n` next page, `p` previous page. Jump: `j1`, `j2`, etc. to any notebook in current path. `jb` jumps back.
 
 **Commands:**  
-- `[C]reate` – create notebook (default location, custom path, or import existing)  
+- `[C]reate` – create notebook (default, custom path, or import)  
 - `[V]iew` – open notebook (requires number)  
 - `[S]earch` – universal search  
 - `[D]elete` – delete notebook (registry only, standard delete, or secure erase)  
-- `[L]ock` – lock or unlock encrypted notebook  
-- `[M]anage` – open notebook manager (Git accounts, repositories)  
+- `[L]ock` – lock/unlock encrypted notebook  
+- `[M]anage` – open notebook manager  
 - `[Q]uit` – exit (`q` confirmation, `qy` immediate)
 
 ---
@@ -65,18 +56,16 @@ Sub-notebooks: (1 sub)
 
 **Description**
 
-The header shows the path to the current notebook using numbered segments. Paths are truncated to fit the terminal width: shallow paths show full; deeper paths show ellipsis and last visible segments. Numbers restart from 1 at the first visible segment for jump navigation.
-
-Notes and files are interleaved, each with its last updated timestamp. Subnotebooks appear as a gateway at the bottom. The gateway number is `len(paginated_notes) + 1`.
+Header shows numbered path truncated to fit terminal width. Notes and files interleaved with timestamps. Subnotebook gateway appears at bottom; gateway number is `len(paginated_notes) + 1`.
 
 **Commands:**  
 - `[C]reate` – choose regular note, specialized file, or subnotebook  
-- `[V]iew` – open note, file, or subnotebook gateway (requires number)  
+- `[V]iew` – open note, file, or gateway (requires number)  
 - `[D]elete` – delete note or file (forget or erase)  
-- `[A]ctivity` – view activity for this notebook and all descendants  
+- `[A]ctivity` – view activity for notebook and descendants  
 - `[B]ack` – return to home  
 - `[N]ext` / `[P]rev` – page through notes  
-- `[J]ump` – jump to any notebook in the current path  
+- `[J]ump` – jump to any notebook in path  
 - `[Q]uit` – exit
 
 ---
@@ -99,7 +88,7 @@ Sub-notebooks of 'Subproject' (2 subs):
 
 **Description**
 
-The header shows the path to the parent notebook followed by `=>`. Subnotebooks are listed with counts of notes, files, and their own subnotebooks.
+Header shows path to parent notebook followed by `=>`. Subnotebooks listed with counts of notes, files, and their own subnotebooks.
 
 **Commands:**  
 - `[C]reate` – create new subnotebook  
@@ -108,7 +97,7 @@ The header shows the path to the parent notebook followed by `=>`. Subnotebooks 
 - `[R]ename` – rename subnotebook (requires number)  
 - `[B]ack` – return to parent notebook  
 - `[N]ext` / `[P]rev` – page through subnotebooks  
-- `[J]ump` – jump to any notebook in the current path  
+- `[J]ump` – jump to any notebook in path  
 - `[Q]uit` – exit
 
 ---
@@ -136,7 +125,7 @@ Timeline implementation next week.
 
 **Description**
 
-The header shows the path to the current note. Title and timestamps are shown. Content is word‑wrapped and paginated. `[N]ext` and `[P]rev` appear only when content spans multiple pages.
+Header shows path to note. Title and timestamps displayed. Content word‑wrapped and paginated. `[N]ext` and `[P]rev` appear when multiple pages exist.
 
 **Commands:**  
 - `[E]dit` – open in external editor (with autosave recovery)  
@@ -145,7 +134,7 @@ The header shows the path to the current note. Title and timestamps are shown. C
 - `[R]ename` – change title  
 - `[B]ack` – return to notebook screen  
 - `[N]ext` / `[P]rev` – page through content (if paginated)  
-- `[J]ump` – jump to any notebook in the current path  
+- `[J]ump` – jump to any notebook in path  
 - `[Q]uit` – exit
 
 ---
@@ -187,7 +176,7 @@ Similar to note screen but displays "File Name" and file extension. `[X]port` ap
 - `[R]ename` – change filename (preserves extension)  
 - `[B]ack` – return to notebook screen  
 - `[N]ext` / `[P]rev` – page through content  
-- `[J]ump` – jump to any notebook in the current path  
+- `[J]ump` – jump to any notebook in path  
 - `[Q]uit` – exit
 
 ---
@@ -242,9 +231,7 @@ Lists all commits for a note. Each entry shows date, time, action, and change st
 
 **Description**
 
-Shows commits affecting the current notebook and all descendants. The header shows the path (truncated) followed by "and subnotebooks" when subnotebooks exist.
-
-Each entry shows action, item type, title, change statistics (for created/updated), and location relative to the current notebook in brackets. Paths: current notebook shows `[NotebookName]`, deeper shows `[Child]`, `[Child/Grandchild]`, or `[.../Last/Two]`.
+Shows commits affecting the current notebook and all descendants. Header shows truncated path followed by "and subnotebooks" when subnotebooks exist. Each entry shows action, item type, title, change statistics (for created/updated), and location relative to current notebook in brackets.
 
 **Commands:**  
 - `[V]iew` – view item at that commit  
@@ -270,7 +257,7 @@ Search: 'meeting' (3 matches)
 
 **Description**
 
-Results from `ComprehensiveSearch`. Each result shows title and location. Deleted items are marked with `(deleted)`. Action prefixes appear only when the query does not contain an action wildcard.
+Results from `ComprehensiveSearch`. Shows title and location. Deleted items marked with `(deleted)`. Action prefixes appear only when query lacks action wildcard.
 
 **Commands:**  
 - `[S]earch` – new search  
@@ -352,7 +339,7 @@ sys-ronin@github.com Notebooks
 
 **Description**
 
-Lists repositories in the account that match the Terminal Notes naming pattern. Imported notebooks show `(listed)`. Counts are shown for unencrypted notebooks; encrypted notebooks show no counts.
+Lists repositories in account matching Terminal Notes naming pattern. Imported notebooks show `(listed)`. Counts shown for unencrypted notebooks; encrypted notebooks show no counts.
 
 **Commands:**  
 - `[I]mport` – import notebook (requires number)  
@@ -388,7 +375,7 @@ Subnotebooks: 1
 
 **Description**
 
-Shows notebook metadata: path, Git configuration, counts. Commands affect the remote repository.
+Shows notebook metadata: path, Git configuration, counts. Commands affect remote repository.
 
 **Commands:**  
 - `[V]isibility` – toggle public/private  
@@ -418,7 +405,7 @@ Agreed on three-file architecture.
 
 **Description**
 
-Reconstructed item from Git history. Shows content as it existed at that commit. `[R]estore` merges content back into current notebook.
+Reconstructed item from Git history. Shows content as it existed at that commit. `[R]estore` merges content back into current notebook after confirmation.
 
 **Commands:**  
 - `[V]iew` – read‑only view in external editor  
@@ -455,25 +442,32 @@ Password (3 attempts):
 
 **Description**
 
-Appears when unlocking a locked encrypted notebook. Password input is hidden. Success unlocks silently; failure repeats. Locking an unlocked notebook requires no prompt.
+Appears when unlocking locked encrypted notebook. Password input hidden. Success unlocks silently; failure repeats. Locking unlocked notebook requires no prompt.
 
 ---
 
-## Import Screen (Create Menu)
+## Create/Import Menu
 
 ```
 Create / Import Notebook
 
 1. Default location (notebooks_root/)
+   → Quick creation in app's default directory
+
 2. Other location (custom path)
+   → Choose any folder on your system
+   → Notebook will be created in its own subfolder
+
 3. Import existing notebook
+   → Load an existing Terminal Notes notebook
+   → Must contain structure.json and Git history
 
 Choose [1-3]:
 ```
 
 **Description**
 
-Accessed from `[C]reate` on home screen. Options: default location, custom path, or import existing notebook.
+Accessed from `[C]reate` on home screen. Options: default location, custom path, or import existing notebook. Path history shown if available.
 
 ---
 
@@ -483,8 +477,19 @@ Accessed from `[C]reate` on home screen. Options: default location, custom path,
 Create in: Project/Subproject/Active
 
 1 - Regular Note
+    • internal editor (quick, Ctrl+D to save)
+    • external editor (micro/nvim/vim)
+    • auto-saved every 30 seconds
+
 2 - Specialized File
+    • 80+ supported formats (.py, .html, .sh, .md)
+    • full syntax highlighting
+    • file extension determines purpose
+
 3 - Sub-notebook
+    • nested container for organization
+    • holds unlimited notes, files, and sub-notebooks
+    • perfect for projects and hierarchies
 
 Choose [1-3]:
 ```
@@ -492,6 +497,18 @@ Choose [1-3]:
 **Description**
 
 Accessed from `[C]reate` in a notebook. Options: regular note (internal or external editor), specialized file (80+ extensions), or subnotebook.
+
+---
+
+## Search Screen
+
+```
+Search query:
+```
+
+**Description**
+
+Appears when user presses `s` at any screen. Enter search query. After entering, results shown in search results screen.
 
 ---
 
