@@ -1,4 +1,3 @@
-I will correct the document based on the code. No imagination. Only what is actually implemented.
 
 ---
 
