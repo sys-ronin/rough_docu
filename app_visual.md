@@ -1,4 +1,4 @@
-# Terminal Notes Visuals
+# Terminal Notes Screens
 
 ---
 
@@ -11,24 +11,30 @@ Root Notebooks
 [2] 🔒 Personal
 [3] Research (12 notes, 5 files)
 
+<<                            Page 1 of 3                            >>
 
-[C]reate  [V]iew  [S]earch  [D]elete  [L]ock  [M]anage  [Q]uit
+[C]reate  [V]iew  [S]earch  [D]elete  [L]ock  [M]anage  [N]ext  [P]rev  [Q]uit
 
 >
 ```
 
 **Description**
 
-The home screen lists all root notebooks. Unlocked encrypted notebooks show `🔐` and counts. Locked encrypted notebooks show `🔒` without counts. Unencrypted notebooks show no icon and display counts. Pagination: `n` next page, `p` previous page. Jump: `j1`, `j2`, etc. to any notebook in current path. `jb` jumps back.
+Lists all root notebooks. Unlocked encrypted notebooks show `🔐` and counts. Locked encrypted notebooks show `🔒` without counts. Unencrypted notebooks show no icon with counts. Page indicator appears when notebooks exceed screen height.
 
 **Commands:**  
-- `[C]reate` – create notebook (default, custom path, or import)  
+- `[C]reate` – new notebook (default, custom, or import)  
 - `[V]iew` – open notebook (requires number)  
 - `[S]earch` – universal search  
-- `[D]elete` – delete notebook (registry only, standard delete, or secure erase)  
+- `[D]elete` – delete notebook (registry only, standard, or secure erase)  
 - `[L]ock` – lock/unlock encrypted notebook  
-- `[M]anage` – open notebook manager  
+- `[M]anage` – notebook manager (Git accounts, repositories)  
+- `[N]ext` / `[P]rev` – page navigation  
 - `[Q]uit` – exit (`q` confirmation, `qy` immediate)
+
+**Navigation:**  
+- `j1`, `j2`, etc. jump to notebook in current path  
+- `jb` jump back to previous position
 
 ---
 
@@ -48,6 +54,7 @@ Notes & Files: (3 notes, 2 files)
 Sub-notebooks: (1 sub)
 [6] View Sub-notebook =>
 
+<<                            Page 1 of 2                            >>
 
 [C]reate  [V]iew  [D]elete  [A]ctivity  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
 
@@ -56,16 +63,16 @@ Sub-notebooks: (1 sub)
 
 **Description**
 
-Header shows numbered path truncated to fit terminal width. Notes and files interleaved with timestamps. Subnotebook gateway appears at bottom; gateway number is `len(paginated_notes) + 1`.
+Header shows numbered path to current notebook. Notes and files interleaved with timestamps. Subnotebook gateway at bottom with number `len(paginated_notes) + 1`. Page indicator appears when notes exceed screen height.
 
 **Commands:**  
-- `[C]reate` – choose regular note, specialized file, or subnotebook  
+- `[C]reate` – regular note, specialized file, or subnotebook  
 - `[V]iew` – open note, file, or gateway (requires number)  
 - `[D]elete` – delete note or file (forget or erase)  
 - `[A]ctivity` – view activity for notebook and descendants  
 - `[B]ack` – return to home  
 - `[N]ext` / `[P]rev` – page through notes  
-- `[J]ump` – jump to any notebook in path  
+- `[J]ump` – jump to any notebook in current path  
 - `[Q]uit` – exit
 
 ---
@@ -75,11 +82,15 @@ Header shows numbered path truncated to fit terminal width. Notes and files inte
 ```
 [1]Project/[2]Subproject =>
 
-Sub-notebooks of 'Subproject' (2 subs):
+Sub-notebooks of 'Subproject' (5 subs):
 
 [1] Archive (0 notes, 0 files, 0 subs)
 [2] Active (5 notes, 2 files, 0 subs)
+[3] Old (0 notes, 0 files, 0 subs)
+[4] Temp (0 notes, 0 files, 0 subs)
+[5] New (0 notes, 0 files, 0 subs)
 
+<<                            Page 1 of 2                            >>
 
 [C]reate  [V]iew  [D]elete  [R]ename  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
 
@@ -88,21 +99,21 @@ Sub-notebooks of 'Subproject' (2 subs):
 
 **Description**
 
-Header shows path to parent notebook followed by `=>`. Subnotebooks listed with counts of notes, files, and their own subnotebooks.
+Header shows path to parent notebook followed by `=>`. Subnotebooks listed with counts of notes, files, and their own subnotebooks. Page indicator appears when subnotebooks exceed screen height.
 
 **Commands:**  
-- `[C]reate` – create new subnotebook  
+- `[C]reate` – new subnotebook  
 - `[V]iew` – open subnotebook (requires number)  
 - `[D]elete` – delete subnotebook (forget or erase)  
 - `[R]ename` – rename subnotebook (requires number)  
 - `[B]ack` – return to parent notebook  
 - `[N]ext` / `[P]rev` – page through subnotebooks  
-- `[J]ump` – jump to any notebook in path  
+- `[J]ump` – jump to any notebook in current path  
 - `[Q]uit` – exit
 
 ---
 
-## Note Screen
+## Note Screen (Multiple Pages)
 
 ```
 [1]Project/[2]Subproject/[3]Active
@@ -112,11 +123,11 @@ Created: Mar 23   Updated: Mar 23 14:30
 
 ────────────────────────────────────────────────────────────────────────
 
-Discussed architecture for resurrection engine.
-UUID permanence confirmed.
-Timeline implementation next week.
+[Page 1 content lines...]
 
 ────────────────────────────────────────────────────────────────────────
+
+<<                            Page 1 of 2                            >>
 
 [E]dit  [V]iew  [T]imeline  [R]ename  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
 
@@ -125,16 +136,16 @@ Timeline implementation next week.
 
 **Description**
 
-Header shows path to note. Title and timestamps displayed. Content word‑wrapped and paginated. `[N]ext` and `[P]rev` appear when multiple pages exist.
+Header shows path to note. Title and timestamps displayed. Content word‑wrapped and paginated. Page indicator appears when content exceeds screen height.
 
 **Commands:**  
-- `[E]dit` – open in external editor (with autosave recovery)  
+- `[E]dit` – external editor (with autosave recovery)  
 - `[V]iew` – read‑only view in external editor  
-- `[T]imeline` – show version history  
+- `[T]imeline` – version history  
 - `[R]ename` – change title  
 - `[B]ack` – return to notebook screen  
-- `[N]ext` / `[P]rev` – page through content (if paginated)  
-- `[J]ump` – jump to any notebook in path  
+- `[N]ext` / `[P]rev` – page through content  
+- `[J]ump` – jump to any notebook in current path  
 - `[Q]uit` – exit
 
 ---
@@ -159,24 +170,25 @@ Created: Mar 22   Updated: Mar 22 09:15
 
 ────────────────────────────────────────────────────────────────────────
 
-[E]dit  [V]iew  [T]imeline  [X]port  [R]ename  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
+<<                            Page 1 of 1                            >>
+
+[E]dit  [V]iew  [T]imeline  [X]port  [R]ename  [B]ack  [J]ump  [Q]uit
 
 >
 ```
 
 **Description**
 
-Similar to note screen but displays "File Name" and file extension. `[X]port` appears for file notes.
+Similar to note screen but displays "File Name" and file extension. `[X]port` exports file to filesystem. Content fits on one page, so no page navigation commands.
 
 **Commands:**  
-- `[E]dit` – open in external editor  
+- `[E]dit` – external editor  
 - `[V]iew` – read‑only view  
-- `[T]imeline` – show version history  
-- `[X]port` – export file to filesystem  
+- `[T]imeline` – version history  
+- `[X]port` – export to filesystem  
 - `[R]ename` – change filename (preserves extension)  
 - `[B]ack` – return to notebook screen  
-- `[N]ext` / `[P]rev` – page through content  
-- `[J]ump` – jump to any notebook in path  
+- `[J]ump` – jump to any notebook in current path  
 - `[Q]uit` – exit
 
 ---
@@ -191,23 +203,24 @@ Timeline: meeting-2026-03-23 (8 versions)
 [3] 2026-03-23 09:00 [CREATED] (+128)
 [4] 2026-03-22 18:30 [UPDATED] (+15/-3)
 [5] 2026-03-22 10:00 [UPDATED] (+34/-8)
-[6] 2026-03-21 16:20 [UPDATED] (+9/-2)
-[7] 2026-03-21 09:00 [CREATED] (+87)
-[8] 2026-03-20 22:00 [DELETED]
 
-[V]iew  [B]ack  [N]ext  [P]rev
+<<                            Page 1 of 2                            >>
+
+[V]iew  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
 
 >
 ```
 
 **Description**
 
-Lists all commits for a note. Each entry shows date, time, action, and change statistics. Actions: CREATED, UPDATED, DELETED, RENAMED, RESTORED, ERASED. Statistics appear only for CREATED and UPDATED.
+Lists all commits for a note. Each entry shows date, time, action, and change statistics (CREATED: total chars, UPDATED: added/removed). Page indicator appears when versions exceed screen height.
 
 **Commands:**  
 - `[V]iew` – view note at that commit (requires number)  
 - `[B]ack` – return to note screen  
-- `[N]ext` / `[P]rev` – page through versions
+- `[N]ext` / `[P]rev` – page through versions  
+- `[J]ump` – jump to any notebook in current path  
+- `[Q]uit` – exit
 
 ---
 
@@ -221,22 +234,23 @@ Lists all commits for a note. Each entry shows date, time, action, and change st
 [3] renamed sub: Archive → Old-Archive                   [Subproject]
 [4] deleted note: temp-notes                             [Active]
 [5] updated file: diagram.png (+0/-0)                    [Subproject]
-[6] created sub: Active                                  [Subproject]
-[7] restored note: research-notes                        [Active]
 
-[V]iew  [B]ack  [N]ext  [P]rev  [Q]uit
+<<                            Page 1 of 2                            >>
+
+[V]iew  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
 
 >
 ```
 
 **Description**
 
-Shows commits affecting the current notebook and all descendants. Header shows truncated path followed by "and subnotebooks" when subnotebooks exist. Each entry shows action, item type, title, change statistics (for created/updated), and location relative to current notebook in brackets.
+Shows commits affecting current notebook and all descendants. Each entry shows action, item type, title, change statistics, and location relative to current notebook in brackets. Paths: `[NotebookName]` (current), `[Child]`, `[Child/Grandchild]`, `[.../Last/Two]`. Page indicator appears when commits exceed screen height.
 
 **Commands:**  
 - `[V]iew` – view item at that commit  
 - `[B]ack` – return to notebook screen  
 - `[N]ext` / `[P]rev` – page through activity  
+- `[J]ump` – jump to any notebook in current path  
 - `[Q]uit` – exit
 
 ---
@@ -244,25 +258,30 @@ Shows commits affecting the current notebook and all descendants. Header shows t
 ## Search Results Screen
 
 ```
-Search: 'meeting' (3 matches)
+Search: 'meeting' (8 matches)
 
 [1] meeting-2026-03-23                                [Active]
 [2] meeting-2026-03-22 (deleted)                      [Active]
 [3] meeting-2026-03-21                                [Archive]
+[4] meeting-2026-03-20                                [Active]
+[5] meeting-2026-03-19                                [Archive]
 
-[S]earch  [V]iew  [B]ack  [Q]uit
+<<                            Page 1 of 2                            >>
+
+[S]earch  [V]iew  [B]ack  [N]ext  [P]rev  [Q]uit
 
 >
 ```
 
 **Description**
 
-Results from `ComprehensiveSearch`. Shows title and location. Deleted items marked with `(deleted)`. Action prefixes appear only when query lacks action wildcard.
+Results from `ComprehensiveSearch`. Each result shows title and location. Deleted items marked with `(deleted)`. Action prefixes appear only when query lacks action wildcard. Page indicator appears when results exceed screen height.
 
 **Commands:**  
 - `[S]earch` – new search  
 - `[V]iew` – view result (requires number)  
 - `[B]ack` – return to previous screen  
+- `[N]ext` / `[P]rev` – page through results  
 - `[Q]uit` – exit
 
 ---
@@ -275,22 +294,26 @@ Notebook Manager
 [1] 🔐 Project (3 notes, 2 files)                 [gh/username]
 [2] 🔒 Personal                                  [Not linked]
 [3] Research (12 notes, 5 files)                 [gh/username]
+[4] Archive (0 notes, 0 files)                   [Not linked]
+[5] Temp (0 notes, 0 files)                      [Not linked]
 
+<<                            Page 1 of 2                            >>
 
-[V]iew  [I]mport  [A]ccounts  [B]ack  [Q]uit
+[V]iew  [I]mport  [A]ccounts  [B]ack  [N]ext  [P]rev  [Q]uit
 
 >
 ```
 
 **Description**
 
-Lists all notebooks with Git remote status. Unlocked encrypted show 🔐 and counts. Locked encrypted show 🔒 without counts. Unencrypted show no icon with counts. Git account and repository appear when configured.
+Lists all notebooks with Git remote status. Unlocked encrypted show 🔐 and counts. Locked encrypted show 🔒 without counts. Unencrypted show no icon with counts. Page indicator appears when notebooks exceed screen height.
 
 **Commands:**  
-- `[V]iew` – show notebook details  
+- `[V]iew` – notebook details (path, Git config, counts)  
 - `[I]mport` – import notebook from Git URL  
 - `[A]ccounts` – manage Git accounts  
 - `[B]ack` – return to home  
+- `[N]ext` / `[P]rev` – page through notebooks  
 - `[Q]uit` – exit
 
 ---
@@ -302,22 +325,25 @@ Accounts
 
 [1] sys-ronin@github.com (3 notebooks) [GitHub]
 [2] jane@gitlab.com (1 notebooks) [GitLab]
+[3] admin@gitlab.com (2 notebooks) [GitLab]
 
+<<                            Page 1 of 2                            >>
 
-[V]iew  [A]dd  [R]emove  [B]ack  [Q]uit
+[V]iew  [A]dd  [R]emove  [B]ack  [N]ext  [P]rev  [Q]uit
 
 >
 ```
 
 **Description**
 
-Lists configured Git accounts. When no accounts exist, shows "No accounts configured." and only `[A]dd` appears.
+Lists configured Git accounts. Each line shows username, host, notebook count, platform. Page indicator appears when accounts exceed screen height.
 
 **Commands:**  
 - `[V]iew` – show repositories for account (requires number)  
 - `[A]dd` – add new account  
 - `[R]emove` – remove account (requires number)  
 - `[B]ack` – return to notebook manager  
+- `[N]ext` / `[P]rev` – page through accounts  
 - `[Q]uit` – exit
 
 ---
@@ -330,22 +356,26 @@ sys-ronin@github.com Notebooks
 [1] terminal-notes (3 notes, 2 files, 1 sub) [PRIVATE]
 [2] project-alpha (12 notes, 5 files, 3 subs) [PUBLIC]
 [3] old-project (listed)                     [PRIVATE]
+[4] new-project (0 notes, 0 files, 0 subs)  [PRIVATE]
+[5] test-project (0 notes, 0 files, 0 subs) [PUBLIC]
 
+<<                            Page 1 of 2                            >>
 
-[I]mport  [P]ull  [R]efresh  [B]ack  [Q]uit
+[I]mport  [P]ull  [R]efresh  [B]ack  [N]ext  [P]rev  [Q]uit
 
 >
 ```
 
 **Description**
 
-Lists repositories in account matching Terminal Notes naming pattern. Imported notebooks show `(listed)`. Counts shown for unencrypted notebooks; encrypted notebooks show no counts.
+Lists repositories matching Terminal Notes naming pattern. Imported notebooks show `(listed)`. Counts shown for unencrypted notebooks. Page indicator appears when repositories exceed screen height.
 
 **Commands:**  
 - `[I]mport` – import notebook (requires number)  
-- `[P]ull` – pull updates (`pall` pulls all, `p1` pulls specific)  
+- `[P]ull` – pull updates (`pall` all, `p1` specific)  
 - `[R]efresh` – refresh list  
 - `[B]ack` – return to accounts  
+- `[N]ext` / `[P]rev` – page through repositories  
 - `[Q]uit` – exit
 
 ---
@@ -375,7 +405,7 @@ Subnotebooks: 1
 
 **Description**
 
-Shows notebook metadata: path, Git configuration, counts. Commands affect remote repository.
+Shows notebook metadata. Commands affect remote repository.
 
 **Commands:**  
 - `[V]isibility` – toggle public/private  
@@ -467,7 +497,7 @@ Choose [1-3]:
 
 **Description**
 
-Accessed from `[C]reate` on home screen. Options: default location, custom path, or import existing notebook. Path history shown if available.
+Accessed from `[C]reate` on home screen. Options: default location, custom path, or import existing notebook.
 
 ---
 
@@ -496,11 +526,11 @@ Choose [1-3]:
 
 **Description**
 
-Accessed from `[C]reate` in a notebook. Options: regular note (internal or external editor), specialized file (80+ extensions), or subnotebook.
+Accessed from `[C]reate` in a notebook. Options: regular note (internal/external editor), specialized file, or subnotebook.
 
 ---
 
-## Search Screen
+## Search Prompt
 
 ```
 Search query:
@@ -517,8 +547,7 @@ Appears when user presses `s` at any screen. Enter search query. After entering,
 All screens share:
 - Numbered items for navigation
 - Footer with available commands
-- Pagination (`n`/`p`) for lists
-- Page indicators with `<<` and `>>` when multiple pages exist
+- Page indicators (`<<` and `>>`) and pagination commands (`[N]ext`, `[P]rev`) only when content exceeds screen height
 - Jump navigation (`j1`, `j2`, `jb`) using numbered path segments
 - Consistent `[B]ack` and `[Q]uit` commands
 
