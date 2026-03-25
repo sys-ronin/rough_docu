@@ -187,7 +187,6 @@ Similar to note screen but displays "File Name" and file extension. `[X]port` ex
 - `[X]port` – export to filesystem  
 - `[R]ename` – change filename (preserves extension)  
 - `[B]ack` – return to notebook screen  
-- `[J]ump` – jump to any notebook in current path  
 - `[Q]uit` – exit
 
 ---
