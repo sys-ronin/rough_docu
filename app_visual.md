@@ -129,7 +129,7 @@ Created: Mar 23   Updated: Mar 23 14:30
 
 <<                            Page 1 of 2                            >>
 
-[E]dit  [V]iew  [T]imeline  [R]ename  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
+[E]dit  [V]iew  [T]imeline  [R]ename  [B]ack  [N]ext  [P]rev  [Q]uit
 
 >
 ```
@@ -145,7 +145,6 @@ Header shows path to note. Title and timestamps displayed. Content word‑wrappe
 - `[R]ename` – change title  
 - `[B]ack` – return to notebook screen  
 - `[N]ext` / `[P]rev` – page through content  
-- `[J]ump` – jump to any notebook in current path  
 - `[Q]uit` – exit
 
 ---
@@ -172,7 +171,7 @@ Created: Mar 22   Updated: Mar 22 09:15
 
 <<                            Page 1 of 1                            >>
 
-[E]dit  [V]iew  [T]imeline  [X]port  [R]ename  [B]ack  [J]ump  [Q]uit
+[E]dit  [V]iew  [T]imeline  [X]port  [R]ename  [B]ack  [Q]uit
 
 >
 ```
