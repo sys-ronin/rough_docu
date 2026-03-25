@@ -204,7 +204,7 @@ Timeline: meeting-2026-03-23 (8 versions)
 
 <<                            Page 1 of 2                            >>
 
-[V]iew  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
+[V]iew  [B]ack  [N]ext  [P]rev  [Q]uit
 
 >
 ```
@@ -217,7 +217,6 @@ Lists all commits for a note. Each entry shows date, time, action, and change st
 - `[V]iew` – view note at that commit (requires number)  
 - `[B]ack` – return to note screen  
 - `[N]ext` / `[P]rev` – page through versions  
-- `[J]ump` – jump to any notebook in current path  
 - `[Q]uit` – exit
 
 ---
@@ -235,7 +234,7 @@ Lists all commits for a note. Each entry shows date, time, action, and change st
 
 <<                            Page 1 of 2                            >>
 
-[V]iew  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
+[V]iew  [B]ack  [N]ext  [P]rev  [Q]uit
 
 >
 ```
@@ -248,7 +247,6 @@ Shows commits affecting current notebook and all descendants. Each entry shows a
 - `[V]iew` – view item at that commit  
 - `[B]ack` – return to notebook screen  
 - `[N]ext` / `[P]rev` – page through activity  
-- `[J]ump` – jump to any notebook in current path  
 - `[Q]uit` – exit
 
 ---
