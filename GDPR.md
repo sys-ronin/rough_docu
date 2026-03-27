@@ -1,4 +1,3 @@
-```markdown
 # Terminal Notes: Architectural Compliance
 
 ## A Document of Observation
