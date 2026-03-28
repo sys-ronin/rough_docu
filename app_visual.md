@@ -11,7 +11,7 @@ Root Notebooks
 [2] 🔒 Personal
 [3] Research (12 notes, 5 files)
 
-<<                            Page 1 of 3                            >>
+                              Page 1 of 3                            >>
 
 [C]reate  [V]iew  [S]earch  [D]elete  [L]ock  [M]anage  [N]ext  [P]rev  [Q]uit
 
@@ -54,7 +54,7 @@ Notes & Files: (3 notes, 2 files)
 Sub-notebooks: (1 sub)
 [6] View Sub-notebook =>
 
-<<                            Page 1 of 2                            >>
+                              Page 1 of 2                            >>
 
 [C]reate  [V]iew  [D]elete  [A]ctivity  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
 
@@ -90,7 +90,7 @@ Sub-notebooks of 'Subproject' (5 subs):
 [4] Temp (0 notes, 0 files, 0 subs)
 [5] New (0 notes, 0 files, 0 subs)
 
-<<                            Page 1 of 2                            >>
+                              Page 1 of 2                            >>
 
 [C]reate  [V]iew  [D]elete  [R]ename  [B]ack  [N]ext  [P]rev  [J]ump  [Q]uit
 
@@ -127,7 +127,7 @@ Created: Mar 23   Updated: Mar 23 14:30
 
 ────────────────────────────────────────────────────────────────────────
 
-<<                            Page 1 of 2                            >>
+                              Page 1 of 2                            >>
 
 [E]dit  [V]iew  [T]imeline  [R]ename  [B]ack  [N]ext  [P]rev  [Q]uit
 
@@ -169,7 +169,7 @@ Created: Mar 22   Updated: Mar 22 09:15
 
 ────────────────────────────────────────────────────────────────────────
 
-<<                            Page 1 of 1                            >>
+                              Page 1 of 1                            >>
 
 [E]dit  [V]iew  [T]imeline  [X]port  [R]ename  [B]ack  [Q]uit
 
@@ -202,7 +202,7 @@ Timeline: meeting-2026-03-23 (8 versions)
 [4] 2026-03-22 18:30 [UPDATED] (+15/-3)
 [5] 2026-03-22 10:00 [UPDATED] (+34/-8)
 
-<<                            Page 1 of 2                            >>
+                              Page 1 of 2                            >>
 
 [V]iew  [B]ack  [N]ext  [P]rev  [Q]uit
 
@@ -232,7 +232,7 @@ Lists all commits for a note. Each entry shows date, time, action, and change st
 [4] deleted note: temp-notes                             [Active]
 [5] updated file: diagram.png (+0/-0)                    [Subproject]
 
-<<                            Page 1 of 2                            >>
+                              Page 1 of 2                            >>
 
 [V]iew  [B]ack  [N]ext  [P]rev  [Q]uit
 
@@ -262,7 +262,7 @@ Search: 'meeting' (8 matches)
 [4] meeting-2026-03-20                                [Active]
 [5] meeting-2026-03-19                                [Archive]
 
-<<                            Page 1 of 2                            >>
+                              Page 1 of 2                            >>
 
 [S]earch  [V]iew  [B]ack  [N]ext  [P]rev  [Q]uit
 
@@ -293,7 +293,7 @@ Notebook Manager
 [4] Archive (0 notes, 0 files)                   [Not linked]
 [5] Temp (0 notes, 0 files)                      [Not linked]
 
-<<                            Page 1 of 2                            >>
+                              Page 1 of 2                            >>
 
 [V]iew  [I]mport  [A]ccounts  [B]ack  [N]ext  [P]rev  [Q]uit
 
@@ -323,7 +323,7 @@ Accounts
 [2] jane@gitlab.com (1 notebooks) [GitLab]
 [3] admin@gitlab.com (2 notebooks) [GitLab]
 
-<<                            Page 1 of 2                            >>
+                              Page 1 of 2                            >>
 
 [V]iew  [A]dd  [R]emove  [B]ack  [N]ext  [P]rev  [Q]uit
 
@@ -355,7 +355,7 @@ sys-ronin@github.com Notebooks
 [4] new-project (0 notes, 0 files, 0 subs)  [PRIVATE]
 [5] test-project (0 notes, 0 files, 0 subs) [PUBLIC]
 
-<<                            Page 1 of 2                            >>
+                              Page 1 of 2                            >>
 
 [I]mport  [P]ull  [R]efresh  [B]ack  [N]ext  [P]rev  [Q]uit
 
