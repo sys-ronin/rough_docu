@@ -7,7 +7,7 @@
 **Date of Disclosure:** April 2026  
 **Author:** sys_ronin  
 **Status:** Public, Timestamped, Irrevocable  
-**Repository:** [github.com/sys-ronin/terminal-notes](https://github.com/sys-ronin/terminal-notes)
+**Repository:** [github.com/sys-ronin/terminal-notes](https://github.com/sys-ronin/terminal_notes)
 
 ---
 
