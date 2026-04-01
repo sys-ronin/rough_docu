@@ -1,6 +1,6 @@
 # Prior Art Disclosure: Terminal Notes Encryption System
 
-## A Complete Technical Description of a Flexible, Dual-Key, Hardware-Bound, Portable Encryption Architecture with Zero-Configuration, Cross-Platform Deployment
+## A Complete Technical Description of a Flexible, Dual-Key, Hardware-Bound, Portable Encryption Architecture with Zero-Configuration, Cross-Platform Deployment and Explicit Memory Management
 
 ---
 
@@ -22,7 +22,7 @@
 7. File Structure
 8. Hardware-Bound Key Storage
 9. Dual-Key Authentication
-10. The Lock Button: Visual Encryption Status
+10. The Lock Button: Visual Encryption Status and Explicit Memory Manager
 11. Recovery Mechanism
 12. Password Change Without Re-encryption
 13. No Phrase Storage
@@ -48,6 +48,7 @@ This document describes the encryption architecture implemented in Terminal Note
 - Provides free encrypted sync via Git
 - Bundles cross-platform cryptography libraries for zero-configuration deployment
 - Uses a single lock symbol (🔒/🔐) as the complete encryption interface
+- Implements the lock button as an **explicit memory manager** that unloads encryption keys and notebook structure from RAM
 
 The purpose of this disclosure is to establish prior art under 35 U.S.C. § 102(a)(1). The concepts described herein are now part of the public domain. No party may obtain valid patent claims covering any concept disclosed.
 
@@ -63,6 +64,7 @@ The purpose of this disclosure is to establish prior art under 35 U.S.C. § 102(
 | **Hardware-Bound Key Storage** | Keys encrypted with system fingerprint derived from machine identifiers |
 | **Cross-Encrypted Key Files** | Three files: `.tn_test`, `.tn_recovery`, `.tn_password` |
 | **Lock Button as Visual Status** | Single key (`l`) toggles between 🔒 (locked) and 🔐 (unlocked). The symbol is the complete interface. |
+| **Lock Button as Explicit Memory Manager** | Locking removes encryption keys from memory AND unloads the entire notebook structure (notes, subnotebooks, content cache) from RAM. Unlocking loads keys from secure session and restores structure. |
 | **Instant Password Change** | Password change without re-encrypting the notebook |
 | **No Phrase Storage** | Recovery phrase shown once, never stored or hashed |
 | **Git as Encrypted Sync** | Encrypted JSON blobs pushed to Git remotes (including public repos) |
@@ -255,33 +257,87 @@ The system separates authentication from encryption:
 
 ---
 
-## 10. The Lock Button: Visual Encryption Status
+## 10. The Lock Button: Visual Encryption Status and Explicit Memory Manager
 
-The encryption status is communicated through a single visual element: the lock symbol.
+The lock button serves two critical functions: visual encryption status and explicit memory management.
 
-### Visual Representation
+### 10.1 Visual Representation
 
 | State | Symbol | Meaning |
 |-------|--------|---------|
-| **Locked** | 🔒 | Notebook encrypted, keys not in memory, cannot access |
-| **Unlocked** | 🔐 | Notebook decrypted, keys in memory, full access |
+| **Locked** | 🔒 | Notebook encrypted, keys not in memory, structure unloaded, cannot access |
+| **Unlocked** | 🔐 | Notebook decrypted, keys in memory, structure loaded, full access |
 | **Unencrypted** | (no symbol) | Notebook not encrypted |
 
-### User Interaction
+### 10.2 User Interaction
 
 Single key press (`l`) toggles the lock state:
 
-- **Press `l` on a locked notebook** → prompts for password, unlocks, symbol changes to 🔐
-- **Press `l` on an unlocked notebook** → clears keys from memory, locks, symbol changes to 🔒
+- **Press `l` on a locked notebook** → prompts for password, verifies, loads keys, loads structure, symbol changes to 🔐
+- **Press `l` on an unlocked notebook** → clears keys from memory, unloads structure, symbol changes to 🔒
 
-### Cognitive Design
+### 10.3 The Lock Button as Explicit Memory Manager
 
-- The lock symbol is universally understood
-- No menu, no settings, no configuration
-- The symbol is the complete interface for encryption
-- Users never see the underlying cryptography
+When the user presses `l` on an unlocked notebook, the system performs explicit memory cleanup:
 
-**This is the complete encryption interface: one key, one symbol.**
+```python
+# Lock operation
+notebook.custom_path = None                    # Remove path reference
+del self.manager.session_keys[notebook.id]     # Delete encryption keys from memory
+notebook.locked = True                          # Set lock state
+if hasattr(notebook, '_crypto'):               # Remove crypto object
+    delattr(notebook, '_crypto')
+```
+
+Additionally, the notebook structure is unloaded:
+
+```python
+# Unload notebook content
+notebook.notes = []                 # Clear all notes from memory
+notebook.subnotebooks = []          # Clear all subnotebooks from memory
+notebook._notes_loaded = False      # Mark as unloaded
+```
+
+**What is removed from memory:**
+- Encryption keys (Kp, Ks, Kc)
+- Crypto object
+- All note content
+- All subnotebook structures
+- File content cache
+- Path references
+
+**What remains:**
+- Registry entry (notebook metadata, encrypted)
+- Notebook folder on disk
+- Secure session file (keys encrypted with system fingerprint)
+
+### 10.4 Why This Matters
+
+The lock button is not just a security feature. It is an **explicit memory manager**:
+
+- **User-controlled memory** — the user decides when to unload a notebook, not the system
+- **No background processes** — the system does not pre-load or cache notebooks
+- **Explicit unloading** — locking is the only way to free notebook memory
+- **Working memory alignment** — matches how human attention works: when you stop thinking about something, you clear it from working memory
+
+### 10.5 Cognitive Alignment
+
+The lock button externalizes the human cognitive process of clearing working memory:
+
+| Human Cognition | System Implementation |
+|-----------------|----------------------|
+| Focus on one task | Notebook unlocked, loaded in memory |
+| Switch tasks | Lock notebook, unload from memory |
+| Return to task | Unlock notebook, reload from disk |
+
+**The user controls what stays in memory. The system does not guess.**
+
+### 10.6 Security Implications
+
+- **Memory dump protection** — keys are not kept in memory longer than necessary
+- **Screensaver/lock-screen protection** — user can lock notebooks before stepping away
+- **Multi-user machines** — users can lock notebooks when switching accounts
+- **No automatic unlocking** — the system never re-loads keys without user action
 
 ---
 
@@ -409,16 +465,22 @@ System fingerprint. Hardware identifiers. Keys can't be copied.
 ### Question 10: How do I make encryption visible?
 One symbol. Locked/unlocked. One key to toggle.
 
-### Question 11: How do I distribute without dependencies?
+### Question 11: How do I manage memory?
+Lock button unloads everything. Keys. Structure. Content. User controls RAM.
+
+### Question 12: Why explicit memory management?
+User knows when they're done. System shouldn't guess. Clear working memory when switching tasks.
+
+### Question 13: How do I distribute without dependencies?
 Bundle cryptography wheels for all platforms. Single executable.
 
-### Question 12: What if I forget the password?
+### Question 14: What if I forget the password?
 Recover with phrase. No cloud. No email. No support.
 
-### Question 13: What if I change the password?
+### Question 15: What if I change the password?
 Password isn't the key. Just update the file that holds it. Instant.
 
-### Question 14: How do I sync?
+### Question 16: How do I sync?
 Git. Encrypted blobs. Public repos are safe. Free sync forever.
 
 **Each step followed from the previous. The system is a chain of logic, not a collection of features.**
@@ -432,15 +494,17 @@ This document establishes prior art for the following concepts:
 1. **Bundled cross-platform cryptography** — Cryptography libraries bundled with platform-specific wheels; zero-configuration deployment; single executable with all dependencies
 2. **Flexible phrase system** — 6, 8, 12, 24 random words OR any custom text (poems, stories, sentences) as the ultimate encryption key
 3. **Lock button as visual status** — Single key (`l`) toggles between 🔒 (locked) and 🔐 (unlocked); the symbol is the complete encryption interface
-4. **Dual-key separation** — password for daily authentication, phrase for encryption
-5. **Hardware-bound key storage** — keys encrypted with system fingerprint derived from machine identifiers
-6. **Cross-encrypted key files** — three files serving distinct purposes: `.tn_test`, `.tn_recovery`, `.tn_password`
-7. **Instant password change** — password change without re-encrypting the encrypted data
-8. **No phrase storage** — recovery phrase shown once, never stored or hashed
-9. **Git as encrypted sync** — encrypted blobs in Git repositories, including public
-10. **Folder name as salt** — folder name used in all key derivations
-11. **Portable encrypted folder** — self-contained, importable on any machine with phrase
-12. **Zero-configuration deployment** — no installation, no dependencies, single executable
+4. **Lock button as explicit memory manager** — Locking removes encryption keys from memory AND unloads the entire notebook structure (notes, subnotebooks, content cache) from RAM; unlocking loads keys from secure session and restores structure
+5. **Cognitive alignment with working memory** — User controls what stays in memory; system does not pre-load or cache; matches human attention model
+6. **Dual-key separation** — password for daily authentication, phrase for encryption
+7. **Hardware-bound key storage** — keys encrypted with system fingerprint derived from machine identifiers
+8. **Cross-encrypted key files** — three files serving distinct purposes: `.tn_test`, `.tn_recovery`, `.tn_password`
+9. **Instant password change** — password change without re-encrypting the encrypted data
+10. **No phrase storage** — recovery phrase shown once, never stored or hashed
+11. **Git as encrypted sync** — encrypted blobs in Git repositories, including public
+12. **Folder name as salt** — folder name used in all key derivations
+13. **Portable encrypted folder** — self-contained, importable on any machine with phrase
+14. **Zero-configuration deployment** — no installation, no dependencies, single executable
 
 These concepts are described in public, timestamped documents as of April 2026. They constitute prior art under 35 U.S.C. § 102(a)(1).
 
@@ -464,6 +528,8 @@ Terminal Notes implements a dual-key encryption system where:
 - The password is a convenience factor for daily use
 - Keys are bound to hardware (system fingerprint)
 - The lock button (🔒/🔐) is the complete encryption interface
+- **The lock button is also an explicit memory manager** — it unloads keys, structure, and content from RAM
+- Users control memory explicitly, matching human cognitive patterns
 - Recovery works on any machine with the phrase
 - Password changes are instant
 - No phrase is ever stored
@@ -480,4 +546,4 @@ This disclosure is made in the public interest. It may be cited in any patent ex
 **sys_ronin**  
 April 2026  
 sys_ronin@protonmail.com  
-github.com/sys-ronin/terminal-notes
+github.com/sys-ronin/terminal_notes
