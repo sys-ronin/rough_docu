@@ -202,6 +202,6 @@
 
 ---
 
-*there are more but the best part is, user will see almost nothing*
+"and more..."
 ---
 sys_ronin
