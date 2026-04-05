@@ -1,4 +1,3 @@
-```markdown
 # Terminal Notes Encryption Architecture
 
 ## Overview
