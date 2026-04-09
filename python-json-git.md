@@ -1,194 +1,189 @@
-# Python, JSON, and Git: A Stable Foundation for Writing
+# A Writing System That Runs Anywhere
 
 ## What This Document Describes
 
-This document describes a writing system built on three common tools.
+This document describes a writing system built on three common tools: Python, JSON, and Git. The system runs in a terminal. It does not require a graphical interface. It does not require a browser. It does not require a network connection.
 
-It does not promote. It does not compare. It simply explains why these tools were chosen.
-
-The goal is stability. The goal is portability. The goal is longevity.
+The description is neutral. It does not compare this system to others. It does not argue that this system is better. It simply explains what it is and how it works.
 
 ---
 
-## The Constraint
+## The Requirement
 
-The system must run on almost any hardware.
+The system was designed to run on as many devices as possible, with the lowest possible requirements, in the most minimal environment, on almost every hardware that still functions.
 
-Not new hardware. Not fast hardware. Not hardware with an internet connection.
+This means:
 
-Any hardware.
+- No cloud dependencies
+- No installation steps beyond copying files
+- No background processes
+- No mandatory updates
+- No external services
 
-A laptop from fifteen years ago. A Raspberry Pi. A virtual machine with minimal resources. A machine that has not been updated in years.
-
-The system must also run without installation. Without admin rights. Without a package manager. Without a network connection.
-
-This is not a hypothetical requirement. It is the starting point.
+The only requirement is a terminal and a Python interpreter.
 
 ---
 
 ## Python
 
-Python is installed by default on most Linux and macOS systems. On Windows, it can be installed once and left alone.
+Python is a programming language. It is available on almost every operating system. Linux distributions include it by default. macOS includes it. Windows users can install it in minutes.
 
-Python 3.13 requires approximately 50 MB of disk space. It runs on processors from the last fifteen years. It does not require a graphics card. It does not require a network connection.
+Python has a standard library. That library contains everything needed to read and write files, run subprocesses, and handle JSON data. No additional packages are required.
 
-Python is interpreted. There is no compilation step. The code runs as written.
+Python 3.13 is the minimum version. Older versions may work but are not tested. Newer versions will work because Python maintains backward compatibility.
 
-The Python standard library includes everything needed for file operations, JSON parsing, subprocess management, and cryptographic primitives. No external libraries are required.
-
-The interpreter is stable. Code written for Python 3.13 will run on Python 3.14, 3.15, and likely 3.20. The language maintainers guarantee backward compatibility.
+The system uses only the standard library. It does not import third‑party modules. The cryptography components are bundled as assets, not installed as dependencies. This means the system runs in environments without network access, without package managers, and without administrative privileges.
 
 ---
 
 ## JSON
 
-JSON is a text format. It is defined by RFC 8259, which is not tied to any company or product.
+JSON is a text format. It is defined in RFC 8259. It is readable by humans and parsable by machines.
 
-A JSON file can be read by any programming language. It can be read by a human with a text editor. It does not require special software.
+The system stores all persistent data in three JSON files:
 
-JSON has no versioning. A JSON file written today will be readable in fifty years. There is no migration path. There is no deprecation schedule.
+- `structure.json` – hierarchy and metadata
+- `notes.json` – note content
+- `files.json` – file content
 
-JSON files are plain text. They compress well. They diff well. They can be stored in Git.
+These files are plain text. Any text editor can open them. Any programming language can parse them. No special database software is required.
+
+Because JSON is text, the files are small and diffable. They can be backed up with standard file‑copying tools. They can be versioned with Git.
 
 ---
 
 ## Git
 
-Git is a distributed version control system. It is not a database. It is not a file system. It is something else.
+Git is a version control system. It is available on almost every operating system. It is commonly installed on developer machines and servers.
 
-Git stores history as a directed acyclic graph of commits. Each commit has a hash, a parent, an author, a date, and a message.
+The system uses Git to store every change. Each modification to the JSON files becomes a commit. The commit messages contain structured metadata: UUID, action type, timestamps.
 
-Git does not require a server. Every repository is a complete copy. There is no single point of failure.
+Git provides:
 
-Git is efficient. A repository with thousands of commits occupies megabytes, not gigabytes. Git compresses data automatically.
+- Complete history of every change
+- Ability to revert to any previous state
+- Ability to clone the entire notebook to another machine
+- Ability to push to remote repositories (optional)
 
-Git is installed on most development machines. It is available for every major operating system. It has been maintained for twenty years. It will likely be maintained for twenty more.
-
----
-
-## Resource Requirements
-
-### Minimum Configuration
-
-- CPU: Any x86 or ARM processor from the last fifteen years
-- RAM: 256 MB (128 MB for the application, 128 MB for the operating system)
-- Disk: 100 MB for the application and Python runtime
-- Operating System: Linux, macOS, Windows, or any system that runs Python 3.13
-
-### Network
-
-No network connection is required for normal operation.
-
-Git remotes are optional. They are not required for the system to function.
-
-### Installation
-
-No installation is required.
-
-The system can be distributed as a single executable for each platform. The executable contains Python, the standard library, and the application code.
-
-On systems where an executable is not trusted, the source code can be run directly with Python 3.13.
+The user does not need to know Git. The system calls Git commands automatically. The Git repository is stored inside the notebook folder. If the user never uses Git commands, the repository remains an internal implementation detail.
 
 ---
 
-## What This Means for Hardware
+## Hardware Requirements
 
-A machine that can run Python 3.13 can run this system.
+The system runs on any hardware that can run Python 3.13 and Git.
 
-That includes:
+This includes:
 
-- Desktop computers from 2010 and later
-- Laptop computers from 2010 and later
-- Single-board computers like the Raspberry Pi
-- Virtual machines with minimal resource allocation
-- Cloud instances with shared CPUs
-- Industrial computers running embedded Linux
-- Any system that can be configured to run Python
-
-No special hardware is required. No GPU. No TPM. No secure enclave.
-
----
-
-## What This Means for Software
+- Desktop computers (Windows, macOS, Linux)
+- Laptops (any age, any operating system)
+- Servers (including headless systems)
+- Single‑board computers (Raspberry Pi, similar)
+- Virtual machines
+- Containers (Docker, Podman)
+- Cloud instances
 
 The system does not require:
 
-- A web browser
-- A graphical user interface framework
-- A database server
-- A container runtime
-- A cloud account
-- An internet connection
-- Admin privileges
-- A package manager
+- A graphical processing unit
+- More than 256 MB of RAM (typical usage)
+- More than 50 MB of disk space (plus notebooks)
+- A network connection (except for Git remotes, which are optional)
+- Administrative privileges (if Python and Git are already installed)
 
-The system only requires Python and Git.
+The bundled executable version requires no Python installation. It runs on any compatible operating system without any setup.
 
 ---
 
-## What This Means for Longevity
+## Operating System Support
 
-The system will continue to work as long as Python and Git continue to work.
+The system runs on:
 
-Python will continue to work because it is installed on millions of machines. It is maintained by a large community. It is not controlled by any single company.
+- Linux (any distribution with Python 3.13 or the bundled executable)
+- macOS (10.15 or newer)
+- Windows (10 or newer)
+- BSD (likely, though untested)
+- Any POSIX system with Python and a terminal
 
-Git will continue to work because it is the standard for version control. It is maintained by the open source community. It is used by every major software project.
-
-JSON will continue to work because it is a text format. Text formats do not become obsolete. They are the lowest common denominator of data exchange.
-
-The system does not depend on:
-
-- A specific operating system version
-- A specific hardware platform
-- A specific cloud provider
-- A specific file system
-- A specific character encoding (UTF-8 is used, which is the standard)
+The terminal must support ANSI escape codes. Most modern terminals do. On Windows, Windows Terminal is recommended. The legacy console (cmd.exe) may work but is not fully tested.
 
 ---
 
-## The Trade-off
+## Network Requirements
 
-This system is not optimized for speed. It is not optimized for features. It is not optimized for aesthetics.
+The system does not require a network connection for core functionality.
 
-It is optimized for stability, portability, and longevity.
+Creating, editing, deleting, searching, and viewing notes all work offline.
 
-If you need real-time collaboration, this is not the tool.
+Git remotes (push, pull) require a network connection. These are optional features. The user can ignore them entirely.
 
-If you need mobile apps, this is not the tool.
+Crash recovery and editor autosave do not require a network.
 
-If you need cloud sync, this is not the tool.
-
-If you need a graphical interface with drag and drop, this is not the tool.
-
-If you need to run on hardware that cannot run Python, this is not the tool.
-
-But if you need a system that will work on almost any machine, with almost no resources, for as long as you need it, this is the tool.
+Encryption does not require a network.
 
 ---
 
-## Summary
+## Storage
 
-| Requirement | Met By |
-|-------------|--------|
-| Runs on old hardware | Python runs on processors from 2010 |
-| Low memory | ~128 MB working set |
-| Low disk | ~100 MB for executable |
-| No network | Offline by default |
-| No installation | Single executable or source run |
-| No dependencies | Python standard library only |
-| Long-term compatibility | Python and Git have stable APIs |
-| Portability | Copy the folder; it works elsewhere |
+Notebooks are stored as folders. Each folder contains three JSON files and a Git repository.
+
+Moving a notebook is as simple as moving the folder. Copying a notebook is as simple as copying the folder. Backing up a notebook is as simple as backing up the folder.
+
+The system does not use a central database. There is no server. There is no cloud. The data stays where the user puts it.
 
 ---
 
-## Conclusion
+## Longevity
 
-This system is not built for the cloud. It is not built for the latest hardware. It is not built for users who want constant updates.
+The system is designed to work for decades.
 
-It is built for the machine under the desk. The laptop in the closet. The server that has not been rebooted in years.
+- Python 3.13 will continue to be installable and runnable for the foreseeable future.
+- JSON is a stable standard that will not change.
+- Git will continue to be maintained.
+- The terminal is a stable interface that has existed for over fifty years.
 
-It is built for the writer who does not want to think about the tool.
+If the system is not updated for ten years, it will still run on the hardware and operating systems of that time, provided Python and Git are still available.
 
-It is built to last.
+If the system is not updated for fifty years, the source code remains. A motivated user could port it to whatever environment exists then. The data—JSON files and Git history—would still be readable.
+
+---
+
+## The Terminal
+
+The terminal is the oldest still‑active user interface in computing. It has survived every technological shift.
+
+The terminal does not require a mouse. It does not require high resolution. It does not require animations or transitions. It only requires a monospaced font and a keyboard.
+
+The terminal is available on every server, every developer machine, and most desktop systems. It is the one interface that is guaranteed to exist in almost any environment.
+
+By choosing the terminal, the system avoids dependency on any particular graphical toolkit, window manager, or desktop environment.
+
+---
+
+## Summary of Requirements
+
+| Component | Minimum Requirement |
+|-----------|---------------------|
+| **Python** | 3.13 (or bundled executable) |
+| **Git** | Any version (for history features) |
+| **RAM** | ~50 MB idle, ~100 MB during search/history |
+| **Disk** | ~1 MB for executable, plus notebook size |
+| **Terminal** | ANSI escape codes, 80x24 minimum |
+| **Network** | None (optional for Git remotes) |
+| **Administrator** | No (if Python and Git are pre‑installed) |
+
+---
+
+## What This Means
+
+A writing system built on Python, JSON, and Git can run on almost any device that still works.
+
+It does not require a modern operating system. It does not require a fast processor. It does not require a large amount of memory. It does not require a network connection.
+
+It requires only a terminal and a way to run Python.
+
+That is a very low bar.
+
+And that is the point.
 
 ```
