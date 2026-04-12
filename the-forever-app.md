@@ -111,7 +111,7 @@ The concepts described in this document – including but not limited to:
 - Portable, hardware‑bound encryption without a TPM
 - The “forever” design properties listed above
 
-were made public in timestamped GitHub repositories and prior art disclosures starting in February 2026.
+were made public in timestamped GitHub repositories and prior art disclosures starting in April 2026.
 
 These concepts constitute prior art under 35 U.S.C. § 102(a)(1) and Article 54(2) of the European Patent Convention, as clarified by Enlarged Board of Appeal decision G 1/23 (2 July 2025). No party may obtain valid patent claims covering any of these concepts in any jurisdiction.
 
