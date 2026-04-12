@@ -1,4 +1,4 @@
-# A Digital Preservation System for the Next Decade
+# Prior Art Disclosure: A Lightweight, Quantum‑Safe Data Preservation System
 
 **Date of Disclosure:** April 2026  
 **Author:** sys_ronin  
@@ -6,103 +6,124 @@
 
 ---
 
-## What This Document Is
+## What This Document Describes
 
-This document describes a digital preservation system built on three common, stable components: encryption applied before write, JSON as the storage format, and Git as the version control layer. The system operates offline, requires no external services, and is designed to remain functional for decades on any hardware that can run Python.
+This document describes a method for preserving digital data that requires no institution, no complex software stack, and no ongoing maintenance. The method is built on four ordinary components: a text format (JSON), a version control system (Git), a symmetric encryption algorithm (AES‑256‑GCM), and a terminal.
 
-This is a defensive publication. The concepts described here are now part of the public domain. No party may obtain valid patent claims covering any of these concepts.
-
----
-
-## The Constraints That Directed the Design
-
-The system was not built by adding features. It was built by respecting a small set of immutable requirements:
-
-- **Encryption happens before write** – data is never stored unencrypted.
-- **Storage is JSON** – plain text, human-readable, machine-parseable, language-agnostic.
-- **Version control is Git** – commits are the unit of history, diffs are binary, storage is efficient.
-- **No external dependencies** – the system runs offline, with no required services.
-- **Portable** – the entire dataset is a folder. Copy it. Move it. Back it up.
-- **Centuries of use** – the components (AES-256-GCM, JSON, Git) are mature, stable, and will remain usable for decades.
-
-From these constraints, every feature emerged. The system is not a collection of arbitrary features; it is a necessary consequence of the constraints.
+The method is designed for a single user, a single folder, and a lifetime of writing. It is not a theoretical framework. It is a working implementation, timestamped and publicly available.
 
 ---
 
-## The Architecture: Encryption Before Write, JSON Storage, Git Versioning
+## The Preservation Problem
 
-### Encryption Before Write
+Digital data decays. Not because the media fails, but because the software required to read it becomes obsolete. Databases are replaced. File formats are abandoned. Encryption schemes are deprecated. Cloud services shut down.
 
-All data is encrypted *before* it is written to disk. The encryption uses AES-256-GCM, a standard algorithm with hardware acceleration on most modern processors. The key is derived from the folder name and a user secret; no separate key file is required.
+Conventional solutions are institutional. They require dedicated servers, specialized staff, and ongoing funding. They are not designed for a person who simply wants their own notes to survive.
 
-Encryption is applied to the JSON files before they are passed to Git. Git never sees plaintext. The encrypted blobs are then committed, diffed, and stored as binary objects.
+This system solves the problem differently: it uses only components that are already decades old and will remain usable for decades more.
+
+---
+
+## The Components
 
 ### JSON as the Storage Format
 
-The system stores all persistent data in three JSON files:
+All persistent data is stored in JSON files. JSON is a text format defined by RFC 8259. It is not a database. It is not a binary blob. It is plain text.
 
-- `structure.json` – hierarchy and metadata
-- `notes.json` – note content
-- `files.json` – file content
+Any text editor can open a JSON file. Any programming language can parse it. There is no vendor lock‑in. If the software that writes the JSON disappears, the data remains readable.
 
-JSON is a text format (RFC 8259). It is human-readable, machine-parseable, and language-agnostic. Any programming language that can read text can parse JSON. The data is not locked into any specific language or database.
+### Git as the Versioning Layer
 
-### Git as the Version Control Layer
+Every change to the JSON files is recorded as a Git commit. Git stores commits as binary deltas. Changes are small, even when the underlying encrypted data changes.
 
-Git stores every change as a commit. The commit messages contain structured metadata: UUID, action type, timestamps. This turns Git into an item-level temporal database.
+Git provides:
+- A complete, immutable history of every change.
+- The ability to revert to any previous state.
+- The ability to clone the entire dataset to another machine.
 
-Git's internal storage uses binary deltas. When a file changes, Git stores the difference between versions, not full copies. This is true for encrypted blobs as well. The encryption does not prevent Git from computing efficient binary diffs. The repository grows only with the actual changes to the encrypted data, not with full snapshots.
+The user never needs to know Git. The system calls Git commands automatically. The repository is stored inside the same folder as the JSON files.
 
----
+### Encryption Before Write
 
-## Why This System Is Quantum-Safe
+All JSON files are encrypted before they are written to disk. The encryption is AES‑256‑GCM, a symmetric cipher that is considered secure against known quantum attacks for the foreseeable future.
 
-The "harvest now, decrypt later" (HNDL) attack is the most significant threat to long-term data confidentiality. Adversaries can intercept and store encrypted data today, waiting for future quantum computers to break current encryption. For data stored in the cloud or transmitted over networks, this is a real and present danger.
+Encryption is applied **before** Git sees the data. Git stores the encrypted blobs. The plaintext never touches the disk.
 
-This system is immune to this attack. The data never leaves the user's control. There is no network transmission to intercept. No adversary can harvest the encrypted data because it is not transmitted. The only copies exist where the user places them—on their own drives, in their own backups.
+Because encryption happens before write, there is no separate “encrypt then sync” step. The encrypted state is the only state.
 
-AES-256-GCM is quantum-safe. Grover's algorithm provides only a quadratic speedup against symmetric encryption, reducing the effective security of AES-256 from 256 bits to 128 bits. A 128-bit key space remains infeasible for any conceivable quantum computer. AES-256 is widely considered a robust choice in a post-quantum world.
+### The Folder as the Unit of Preservation
 
-While the industry races to implement post-quantum cryptography (PQC) standards for asymmetric encryption, this system relies on symmetric encryption for data at rest. The NIST PQC standardization process continues to evolve, with new algorithms and guidance emerging regularly. This system does not depend on those standards. It uses AES-256-GCM, which is already deployed, already audited, and already trusted.
+A complete dataset is a single folder containing:
+- Three JSON files (encrypted)
+- A Git repository (storing the encrypted history)
+- A small set of metadata files (`.tn_test`, `.tn_recovery`, `.tn_password`)
 
----
+To preserve the data, copy the folder. To move it, copy the folder. To back it up, copy the folder. There is no separate database, no configuration file, no registry entry.
 
-## Why Git Binary Diffs Are Sufficient
-
-Git stores binary files efficiently. When a binary file changes, Git stores the difference between versions, not full copies. This is true for encrypted blobs as well. The encryption does not prevent Git from computing binary deltas.
-
-For large binary files, Git LFS is sometimes recommended. However, LFS adds complexity: it requires a separate server, additional configuration, and external dependencies. This system does not use LFS. It relies on Git's native binary diff storage. For the size and volume of data in a personal notebook, native Git is more than sufficient.
-
-The result is a preservation system with no external dependencies. The entire history is stored in a single Git repository, inside the notebook folder. No separate server. No additional services. No complex configuration.
+The folder is the archive. The archive is the folder.
 
 ---
 
-## Why the System Has No Overhead
+## Why This System Is Quantum‑Safe
 
-Digital preservation has traditionally been associated with institutional frameworks like the Open Archival Information System (OAIS) reference model. OAIS is a conceptual framework for long-term preservation, but it is complex and presumes significant institutional infrastructure. This system implements the functional goals of digital preservation without any of the overhead.
+The threat of quantum computers to cryptography is primarily directed at asymmetric algorithms (RSA, ECC) used for key exchange and digital signatures. Symmetric encryption (AES) is much less vulnerable.
 
-- **No separate preservation system** – the notebook folder *is* the preservation system.
-- **No separate indexing layer** – Git's internal index is the search engine.
-- **No separate backup system** – Git clone is the backup.
-- **No separate audit trail** – Git commit history is the audit trail.
-- **No separate integrity checks** – Git's cryptographic hashes provide integrity.
+AES‑256 is believed to require a Grover’s algorithm search, which would reduce its effective key size from 256 bits to 128 bits. A 128‑bit key remains infeasible to brute‑force with any known or projected quantum technology.
 
-The user does not need to think about "preservation." They simply write. The system preserves everything automatically.
+More importantly, this system never transmits encrypted data over a network. The “harvest now, decrypt later” attack – where an adversary stores encrypted data today in anticipation of future quantum computers – is irrelevant. There is no data in transit to harvest.
+
+The only encrypted data that exists is stored locally, under the user’s control. An adversary would need physical access to the storage medium and the ability to break AES‑256. Neither is realistic.
+
+Thus, the system is quantum‑safe for the only threat model that matters: the preservation of private data over decades.
 
 ---
 
-## The Forever Properties
+## Why This System Is Lightweight
 
-| Property | How the System Achieves It |
-|-----------|-----------------------------|
-| **Data outlives software** | The artifacts are JSON and Git repositories, readable by any tool. |
-| **No vendor lock‑in** | The user owns the folder; no cloud, no account, no proprietary format. |
-| **Language‑agnostic** | The core logic can be re‑implemented in any language. |
-| **Dependency‑free** | No external services, no required network, no mandatory updates. |
-| **Offline‑first** | Works without internet; Git remotes are optional. |
-| **Crash‑safe** | Atomic writes and Git commits ensure no corruption. |
-| **Quantum‑safe** | AES-256-GCM is resistant to Grover's algorithm. |
-| **Century‑scale** | JSON, Git, and AES-256-GCM will remain usable for decades. |
+Conventional preservation systems require:
+- Database servers
+- Indexing engines
+- Background processes
+- Regular maintenance
+- Institutional funding
+
+This system requires none of those. It runs on any hardware that can execute a Python interpreter and call Git commands. Typical memory usage is under 100 MB. The executable is approximately 1 MB.
+
+There are no background processes. No scheduled tasks. No automatic updates. The system does nothing unless the user explicitly runs a command.
+
+This is not a compromise. It is a design choice: a preservation system should not require preservation itself.
+
+---
+
+## The Data Outlives the Software
+
+If this software is never updated again, the data remains accessible.
+
+- The JSON files can be read by any text editor.
+- The Git repository can be inspected with any Git client.
+- The encrypted blobs can be decrypted with any AES‑256‑GCM implementation.
+
+A user who stops using the software still has a folder full of plain‑text JSON (if unencrypted) or standard encrypted blobs (if encrypted). The data is not trapped.
+
+This is the opposite of vendor lock‑in. It is vendor liberation.
+
+---
+
+### Doomsday Recovery: Rebuilding the Application from Published Logic
+
+The logic that governs the system is not hidden in the code. It is described in public, timestamped prior art documents. The three‑file architecture, the UUID permanence scheme, the commit message format, and the encryption key derivation are all documented.
+
+In the future, if the original executable no longer runs, anyone can:
+
+1. Read the prior art documents.
+2. Implement the same logic in any programming language (Rust, Go, Java, C, JavaScript, etc.).
+3. Parse the existing JSON files and Git history.
+4. Recreate the same environment: view notes, search history, resurrect deleted items.
+
+The application is not a black box. It is a **specification** with a reference implementation. The data is not tied to Python or to any specific binary. It is tied to open standards and documented patterns.
+
+This is a doomsday feature: even if the software disappears, the data remains useful. The instructions for rebuilding the software are already public.
+
 
 ---
 
@@ -110,23 +131,26 @@ The user does not need to think about "preservation." They simply write. The sys
 
 The concepts described in this document – including but not limited to:
 
-- Encryption applied before write, with AES-256-GCM
-- JSON as the sole persistent storage format for a versioned digital preservation system
-- Git as the version control layer for encrypted binary data
-- The combination of encryption-before-write, JSON storage, and Git versioning in a single offline system
-- The use of binary diffs for encrypted data without LFS
-- The elimination of separate preservation system overhead
+- The use of JSON as the sole persistent storage format for a digital preservation system
+- The integration of Git as a versioning layer for encrypted blobs
+- Encryption applied before write, with no separate sync step
+- The folder as the self‑contained unit of preservation
+- The system’s quantum‑safe properties derived from AES‑256 and offline storage
 
-were made public in timestamped GitHub repositories and prior art disclosures starting in February 2026.
+were made public in timestamped GitHub repositories and prior art disclosures starting in February 2026.
 
-These concepts constitute prior art under 35 U.S.C. § 102(a)(1) and Article 54(2) of the European Patent Convention. No party may obtain valid patent claims covering any of these concepts in any jurisdiction.
+These concepts constitute prior art under 35 U.S.C. § 102(a)(1) and Article 54(2) EPC. No party may obtain valid patent claims covering any of these concepts.
 
-The system is released under the Eternal License, which explicitly prohibits patenting any disclosed concept.
+The system is released under the **Eternal License**, which explicitly prohibits patenting any disclosed concept.
 
 ---
 
 ## Conclusion
 
-This digital preservation system achieves what institutional frameworks have sought for decades: a lightweight, portable, quantum-safe, offline-first preservation system that requires no external dependencies. It encrypts before write, stores in JSON, versions with Git, and runs on any hardware that can run Python.
+A digital preservation system does not need to be complex. It does not need a central authority. It does not need to be online.
 
-The user does not need to manage preservation. The system does it automatically. The data remains readable, versioned, and secure. That is the only kind of preservation that matters.
+It needs three things: a text format that will not become obsolete, a version control system that can track changes efficiently, and an encryption algorithm that will remain secure for decades.
+
+JSON, Git, and AES‑256‑GCM provide these. A folder provides the container. A terminal provides the interface.
+
+This is preservation for a single user. It is lightweight, quantum‑safe, and designed to outlast its own implementation.
