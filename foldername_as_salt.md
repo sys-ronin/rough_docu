@@ -141,4 +141,3 @@ If the folder name is lost or changed, the data becomes permanently inaccessible
 The system does not rely on external key escrow, cloud backup, or administrative override. The security is mathematical and final.
 
 ```
-
