@@ -142,4 +142,3 @@ The system does not rely on external key escrow, cloud backup, or administrative
 
 ```
 
-This document explains the principle of using the folder name as salt and as a user-controlled secret. It aligns with the user's insight that the folder name together with the phrase encrypts the notebook. The language is factual and avoids hype. It establishes prior art for this specific key derivation method.<｜end▁of▁thinking｜>Folder name as salt
