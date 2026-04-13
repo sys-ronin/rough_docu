@@ -1,4 +1,3 @@
-```markdown
 # Prior Art Disclosure: Folder Name as Cryptographic Salt and Secret
 
 **Date of Disclosure:** April 2026  
