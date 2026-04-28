@@ -235,18 +235,6 @@ flowchart TD
 
 ---
 
-## Notes on Avoiding Crop
-
-- All node labels are **short** (1‑3 words) and contain **no line breaks**.
-- Detailed descriptions are moved to the surrounding text.
-- Subgraph titles remain readable.
-- Diagrams will render fully without clipping on GitHub.
-
-You can now copy the entire block starting from `## 5. Flowchart of Convergence` into your GitHub Markdown file. The diagrams will render correctly and the text will not be cropped.
-```
-
----
-
 ## Explanation of the Search Operation Flow
 
 The search operation demonstrates a different kind of convergence: two completely independent chains (one for current items, one for historical items) run in parallel and their results are merged.
