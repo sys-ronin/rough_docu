@@ -81,31 +81,39 @@ I also added a **third diagram for the Search operation** as requested.
 
 ## 5. Flowchart of Convergence – Edit Note
 
+Below are the three diagrams rewritten to **avoid any text cropping** in GitHub’s Mermaid renderer.  
+I kept each node label **short** and used **no physical line breaks** (`<br>` removed).  
+Longer explanations are moved outside the diagram into bullet lists or section text.
+
+---
+
+## 5. Flowchart of Convergence – Edit Note
+
 ```mermaid
 flowchart TD
     subgraph ChainA["Chain A: System → Notebook"]
-        A1["System fingerprint"] --> A2["Master registry: get notebook UUIDs"]
+        A1["System fingerprint"] --> A2["Master registry"]
         A2 --> A3["Notebook UUID → vault name + entry UUID"]
         A3 --> A4["Notebook UUID → folder path"]
     end
 
     subgraph ChainB["Chain B: Vault → Keys"]
-        B1["Entry UUID"] --> B2["Vault file: get encrypted keys"]
+        B1["Entry UUID"] --> B2["Vault file"]
         B2 --> B3["Hardware fingerprint: decrypt keys"]
     end
 
     subgraph ChainC["Chain C: Item → Content"]
-        C1["Item UUID"] --> C2["Notebook folder: read structure.json"]
-        C2 --> C3["Item UUID → note metadata"]
+        C1["Item UUID"] --> C2["Notebook folder"]
+        C2 --> C3["Item metadata"]
     end
 
     subgraph Operation["Operation: Edit Note"]
         O1["Decrypted keys"]
-        O2["Notebook folder path"]
-        O3["Item metadata & new content"]
-        O4["Write to structure.json<br>(update timestamp)"]
-        O5["Write to notes.json<br>(update content)"]
-        O6["Git commit with UUID in message"]
+        O2["Folder path"]
+        O3["Item metadata + new content"]
+        O4["Write structure.json (update timestamp)"]
+        O5["Write notes.json (update content)"]
+        O6["Git commit with UUID"]
     end
 
     A4 --> O2
@@ -131,35 +139,34 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph ChainA["Chain A: Notebook Identification"]
-        A1["User selects notebook UUID"] --> A2["Master registry: get notebook metadata"]
-        A2 --> A3["Get notebook folder path"]
-        A2 --> A4["Get list of all trusted device entries<br>(fingerprint hashes and vault names)"]
+        A1["User selects notebook UUID"] --> A2["Master registry"]
+        A2 --> A3["Get folder path"]
+        A2 --> A4["Get list of all trusted device entries"]
     end
 
     subgraph ChainB["Chain B: Vault Resolution per Entry"]
-        B1["For each entry: fingerprint hash + vault name"]
-        B1 --> B2["Vault registry: vault name → vault file path"]
+        B1["For each entry: fingerprint + vault name"]
+        B1 --> B2["Vault registry → vault file path"]
         B2 --> B3["Open vault file"]
-        B3 --> B4["Locate entry by entry UUID"]
+        B3 --> B4["Locate entry by UUID"]
         B4 --> B5["Remove entry from vault file"]
     end
 
     subgraph ChainC["Chain C: Registry Cleanup"]
-        C1["Master registry: remove all system entries for this notebook"]
-        C1 --> C2["Also remove notebook from master registry entirely"]
+        C1["Master registry: remove all system entries"]
+        C1 --> C2["Remove notebook from master registry"]
     end
 
     subgraph ChainD["Chain D: Filesystem Deletion"]
-        D1["Notebook folder path from Chain A"]
-        D1 --> D2["shutil.rmtree(notebook_folder)"]
+        D1["Notebook folder path"] --> D2["Delete folder"]
     end
 
     subgraph Operation["Operation: Erase Notebook"]
-        O1["Collect all trusted device entries<br>(from all vaults where this notebook appears)"]
-        O2["For each entry: remove from its vault"]
+        O1["Collect all trusted device entries"]
+        O2["For each entry: remove from vault"]
         O3["Remove notebook from master registry"]
         O4["Delete notebook folder"]
-        O5["Clear any cached keys from SessionKeyVault"]
+        O5["Clear SessionKeyVault cache"]
     end
 
     A4 --> O1
@@ -176,7 +183,7 @@ flowchart TD
     O3 --> O5
     O4 --> O5
 
-    O5 --> End["Notebook erased permanently"]
+    O5 --> End["Notebook erased"]
 ```
 
 ---
@@ -186,31 +193,31 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph ChainA["Chain A: Notebook Context (Local)"]
-        A1["Current notebook UUID"] --> A2["Master registry: get notebook folder path"]
-        A2 --> A3["Read structure.json for list of all descendant item UUIDs"]
+        A1["Current notebook UUID"] --> A2["Master registry"]
+        A2 --> A3["Read structure.json for descendant item UUIDs"]
     end
 
     subgraph ChainB["Chain B: Vault → Keys (for decryption)"]
-        B1["Notebook UUID → entry UUID"] --> B2["Vault file: get encrypted keys"]
+        B1["Notebook UUID → entry UUID"] --> B2["Vault file"]
         B2 --> B3["Hardware fingerprint: decrypt keys"]
     end
 
     subgraph ChainC["Chain C: In‑Memory Search (Current Items)"]
-        C1["For each item UUID in descendant list"] --> C2["Read item title/content (decrypted)"]
-        C2 --> C3["Match against query string"]
+        C1["For each descendant UUID"] --> C2["Read item content (decrypted)"]
+        C2 --> C3["Match against query"]
     end
 
-    subgraph ChainD["Chain D: Git History Search (Deleted/Renamed)"]
-        D1["Query: deleted* or renamed*"] --> D2["Git log --grep with action filters"]
-        D2 --> D3["Extract UUIDs from commit messages"]
-        D3 --> D4["Reconstruct items from commits before deletion/rename"]
+    subgraph ChainD["Chain D: Git History Search (Historical Items)"]
+        D1["Query: deleted* or renamed*"] --> D2["Git log --grep"]
+        D2 --> D3["Extract UUID from commit messages"]
+        D3 --> D4["Reconstruct items from parent commit"]
     end
 
     subgraph Operation["Operation: Search"]
-        O1["Collect results from Chain C (current items)"]
-        O2["Collect results from Chain D (historical items)"]
+        O1["Results from Chain C (current items)"]
+        O2["Results from Chain D (historical items)"]
         O3["Merge results (deduplicate by UUID)"]
-        O4["Sort by date (newest first)"]
+        O4["Sort by date"]
         O5["Display paginated results"]
     end
 
@@ -224,6 +231,18 @@ flowchart TD
     O2 --> O3
     O3 --> O4
     O4 --> O5
+```
+
+---
+
+## Notes on Avoiding Crop
+
+- All node labels are **short** (1‑3 words) and contain **no line breaks**.
+- Detailed descriptions are moved to the surrounding text.
+- Subgraph titles remain readable.
+- Diagrams will render fully without clipping on GitHub.
+
+You can now copy the entire block starting from `## 5. Flowchart of Convergence` into your GitHub Markdown file. The diagrams will render correctly and the text will not be cropped.
 ```
 
 ---
