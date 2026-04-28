@@ -79,37 +79,45 @@ The following diagram illustrates how three independent UUID chains converge at 
 
 ```mermaid
 flowchart TD
-    subgraph Chain1[Chain A: System → Notebook]
+    subgraph ChainA[Chain A: System → Notebook]
         A1[System fingerprint] --> A2[Master registry: get notebook UUIDs]
         A2 --> A3[Notebook UUID → vault name + entry UUID]
         A3 --> A4[Notebook UUID → folder path]
     end
 
-    subgraph Chain2[Chain B: Vault → Keys]
+    subgraph ChainB[Chain B: Vault → Keys]
         B1[Entry UUID] --> B2[Vault file: get encrypted keys]
         B2 --> B3[Hardware fingerprint: decrypt keys]
     end
 
-    subgraph Chain3[Chain C: Item → Content]
+    subgraph ChainC[Chain C: Item → Content]
         C1[Item UUID] --> C2[Notebook folder: read structure.json]
         C2 --> C3[Item UUID → note metadata]
     end
 
     subgraph Operation[Operation: Edit Note]
-        O1[Decrypted keys from Chain B]
-        O2[Notebook folder path from Chain A]
-        O3[Item metadata from Chain C]
-        O4[Combine: write updated note to notes.json with encryption]
+        O1[Decrypted keys]
+        O2[Notebook folder path]
+        O3[Item metadata & new content]
+        O4[Write to structure.json\n(update timestamp)]
+        O5[Write to notes.json\n(update content)]
+        O6[Git commit with UUID in message]
     end
 
     A4 --> O2
     B3 --> O1
     C3 --> O3
+
     O1 --> O4
     O2 --> O4
     O3 --> O4
 
-    O4 --> G[Git commit with UUID in message]
+    O1 --> O5
+    O2 --> O5
+    O3 --> O5
+
+    O4 --> O6
+    O5 --> O6
 ```
 
 The chains do not merge; they only feed data into the operation. The operation is the **meeting point**, not a master process.
