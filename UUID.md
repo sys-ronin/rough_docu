@@ -79,29 +79,29 @@ The following diagram illustrates how three independent UUID chains converge at 
 
 ```mermaid
 flowchart TD
-    subgraph ChainA[Chain A: System → Notebook]
-        A1[System fingerprint] --> A2[Master registry: get notebook UUIDs]
-        A2 --> A3[Notebook UUID → vault name + entry UUID]
-        A3 --> A4[Notebook UUID → folder path]
+    subgraph ChainA["Chain A: System → Notebook"]
+        A1["System fingerprint"] --> A2["Master registry: get notebook UUIDs"]
+        A2 --> A3["Notebook UUID → vault name + entry UUID"]
+        A3 --> A4["Notebook UUID → folder path"]
     end
 
-    subgraph ChainB[Chain B: Vault → Keys]
-        B1[Entry UUID] --> B2[Vault file: get encrypted keys]
-        B2 --> B3[Hardware fingerprint: decrypt keys]
+    subgraph ChainB["Chain B: Vault → Keys"]
+        B1["Entry UUID"] --> B2["Vault file: get encrypted keys"]
+        B2 --> B3["Hardware fingerprint: decrypt keys"]
     end
 
-    subgraph ChainC[Chain C: Item → Content]
-        C1[Item UUID] --> C2[Notebook folder: read structure.json]
-        C2 --> C3[Item UUID → note metadata]
+    subgraph ChainC["Chain C: Item → Content"]
+        C1["Item UUID"] --> C2["Notebook folder: read structure.json"]
+        C2 --> C3["Item UUID → note metadata"]
     end
 
-    subgraph Operation[Operation: Edit Note]
-        O1[Decrypted keys]
-        O2[Notebook folder path]
-        O3[Item metadata & new content]
-        O4[Write to structure.json\n(update timestamp)]
-        O5[Write to notes.json\n(update content)]
-        O6[Git commit with UUID in message]
+    subgraph Operation["Operation: Edit Note"]
+        O1["Decrypted keys"]
+        O2["Notebook folder path"]
+        O3["Item metadata & new content"]
+        O4["Write to structure.json<br>(update timestamp)"]
+        O5["Write to notes.json<br>(update content)"]
+        O6["Git commit with UUID in message"]
     end
 
     A4 --> O2
