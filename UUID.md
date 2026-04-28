@@ -109,7 +109,7 @@ flowchart TD
     O2 --> O4
     O3 --> O4
 
-    O4 --> G[Git commit with UUID in message (separate chain)]
+    O4 --> G[Git commit with UUID in message]
 ```
 
 The chains do not merge; they only feed data into the operation. The operation is the **meeting point**, not a master process.
