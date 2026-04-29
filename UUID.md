@@ -249,8 +249,6 @@ The two result sets are deduplicated by UUID and merged into a single list sorte
 
 ---
 
-All three diagrams are now free of syntax errors and will render correctly on GitHub. You can copy the entire block starting from `## 5. Flowchart of Convergence` including the code fences.
-
 ## 6. Why O(1) Complexity Is Achievable
 
 Each resolution step uses a direct key lookup in a static dictionary (JSON object). The dictionary is read from disk or network once per operation (or cached with validation). There is no iteration over lists, no search across unrelated entries, no pattern matching. Therefore, the time to resolve a UUID does **not** grow with the number of notebooks, vaults, or items.
