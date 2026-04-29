@@ -1,3 +1,7 @@
+Below is the rewritten document with corrected, render‑safe Mermaid diagrams. Every flowchart now strictly follows the actual code paths (`terminal_notes_ui.py` → `terminal_notes_core.py` → `notebook_operations.py`). Node labels are kept short, use double quotes, and avoid syntax that breaks GitHub’s Mermaid renderer.
+
+---
+
 # UUID Convergence Architecture
 
 ## Emergent Coordination Through One‑Way Chains
@@ -27,7 +31,7 @@ Multiple independent UUID‑based chains, each originating from a different modu
 
 ## 3. One‑Way O(1) Chains
 
-Each chain is a directed sequence of key lookups. Every step is O(1) because it uses a dictionary (hash map) keyed by a UUID.
+All resolution steps use dictionary lookups; hence O(1).
 
 ### Chain A: Notebook Location Resolution
 ```
@@ -55,69 +59,89 @@ item UUID → Git log query                      (git log --grep)
 commit hashes → commit messages                (Git output parsing)
 ```
 
-All chains are **one‑way** – they never return to a previous step. They have no branching logic (other than existence checks). They are **deterministic** – given the same artifact state, the result is identical.
+All chains are **one‑way**, **deterministic**, and have no branching logic other than existence checks.
 
 ---
 
 ## 4. Convergence at the Operation Point
 
-When a user performs an action (e.g., create a note), the system does not execute a single control flow. Instead, multiple independent chains are triggered by the UI action. They run concurrently or sequentially, but each chain only knows its own origin and its own target. They converge at the **same physical operation** – writing to a file, committing to Git, updating a registry – without any central coordinator.
+When a user performs an action (e.g., create a note), the UI triggers multiple independent chains. They run sequentially or in parallel, but each chain only knows its own origin and target. They converge at the **same physical operation** – writing to a file, committing to Git, updating a registry – without any central coordinator.
 
-The UUIDs act as **rendezvous points**: different chains use the same UUID to locate the same artifact, but they do not exchange information. For example:
-
-- Chain A uses notebook UUID to find the notebook folder.
-- Chain B uses the same notebook UUID to find the vault entry and decrypt keys.
-- Chain C uses the same notebook UUID to locate the structure file for updating.
-
-The operation (write to `structure.json`) receives data from multiple chains (which keys to use for encryption, which path to write, which Git commit message to create) but the chains themselves remain independent.
+The UUIDs act as **rendezvous points**: different chains use the same UUID to locate the same artifact but do not exchange information.
 
 ---
 
-Below are the corrected diagrams that will render properly on GitHub.  
-I have fixed the syntax (double quotes around all labels, no unescaped parentheses or colons, using `<br>` for line breaks).  
-I also added a **third diagram for the Search operation** as requested.
+## 5. Corrected Flowcharts (Aligned with Code)
 
----
-
-## 5. Flowchart of Convergence – Edit Note
-
-Below are the three diagrams rewritten to **avoid any text cropping** in GitHub’s Mermaid renderer.  
-I kept each node label **short** and used **no physical line breaks** (`<br>` removed).  
-Longer explanations are moved outside the diagram into bullet lists or section text.
-
----
-
-## 5. Flowchart of Convergence – Edit Note
+### 5a. Create Note Operation
 
 ```mermaid
 flowchart TD
-    subgraph ChainA["Chain A: System → Notebook"]
-        A1["System fingerprint"] --> A2["Master registry"]
-        A2 --> A3["Notebook UUID → vault name + entry UUID"]
-        A3 --> A4["Notebook UUID → folder path"]
+    subgraph UI["UI Layer (terminal_notes_ui.py)"]
+        U1["User presses 'c' in notebook view"] --> U2["show_create_choice_screen()"]
+        U2 --> U3["User chooses 'Regular Note'"]
+        U3 --> U4["create_note(notebook) called"]
+        U4 --> U5["Prompt for title, get content from editor"]
+        U5 --> U6["Call manager.create_note(...)"]
     end
 
-    subgraph ChainB["Chain B: Vault → Keys"]
-        B1["Entry UUID"] --> B2["Vault file"]
-        B2 --> B3["Hardware fingerprint: decrypt keys"]
+    subgraph Core["Core Layer (terminal_notes_core.py & notebook_operations.py)"]
+        C1["NoteManager.create_note()"] --> C2["NotebookOperations.create_note()"]
+        C2 --> C3["Create Note object with new UUID"]
+        C3 --> C4["Append note to notebook.notes list"]
+        C4 --> C5["Call save_notebook(...)"]
     end
 
-    subgraph ChainC["Chain C: Item → Content"]
-        C1["Item UUID"] --> C2["Notebook folder"]
-        C2 --> C3["Item metadata"]
+    subgraph Chains["Independent O(1) Chains"]
+        CH1["Chain A: notebook.custom_path"] --> CH1a["Already resolved when notebook opened"]
+        CH2["Chain B: ensure_crypto(notebook)"] --> CH2a["Read vault file, decrypt with hardware fingerprint"]
+        CH3["Chain C: generate new UUID"] --> CH3a["uuid.uuid4() or timestamp"]
+        CH4["Chain D: collect UUIDs for Git"] --> CH4a["notebook UUID, note UUID, parent UUID, root UUID"]
+    end
+
+    subgraph Write["Atomic Write & Commit"]
+        W1["Write structure.json (encrypted) -> add note entry"]
+        W2["Write notes.json (encrypted) -> add note content"]
+        W3["Git commit with structured message"]
+    end
+
+    UI --> Core --> Chains
+    Chains --> Write
+    Write --> Done["Note created, UI refreshed"]
+```
+
+---
+
+### 5b. Edit Note Operation (Convergence Shown)
+
+```mermaid
+flowchart TD
+    subgraph ChainA["Chain A: Notebook Location"]
+        A1["Notebook UUID"] --> A2["Master registry -> folder path"]
+    end
+
+    subgraph ChainB["Chain B: Decryption Keys"]
+        B1["Entry UUID"] --> B2["Vault file -> encrypted keys"]
+        B2 --> B3["Hardware fingerprint decrypts keys"]
+    end
+
+    subgraph ChainC["Chain C: Item Content"]
+        C1["Item UUID"] --> C2["structure.json -> metadata"]
+        C1 --> C3["notes.json -> current content"]
     end
 
     subgraph Operation["Operation: Edit Note"]
-        O1["Decrypted keys"]
-        O2["Folder path"]
-        O3["Item metadata + new content"]
+        O1["Decrypted keys (from Chain B)"]
+        O2["Folder path (from Chain A)"]
+        O3["Item metadata & new content (from Chain C + user input)"]
         O4["Write structure.json (update timestamp)"]
         O5["Write notes.json (update content)"]
-        O6["Git commit with UUID"]
+        O6["Git commit with type: UPDATED"]
     end
 
-    A4 --> O2
+    A2 --> O2
     B3 --> O1
+    C2 --> O3
     C3 --> O3
 
     O1 --> O4
@@ -134,27 +158,24 @@ flowchart TD
 
 ---
 
-## 5b. Flowchart of Convergence – Erase Notebook
+### 5c. Erase Notebook (Hard Delete + Remove All Trusted Devices)
 
 ```mermaid
 flowchart TD
     subgraph ChainA["Chain A: Notebook Identification"]
         A1["User selects notebook UUID"] --> A2["Master registry"]
         A2 --> A3["Get folder path"]
-        A2 --> A4["Get list of all trusted device entries"]
+        A2 --> A4["Get all trusted device entries"]
     end
 
     subgraph ChainB["Chain B: Vault Resolution per Entry"]
-        B1["For each entry: fingerprint + vault name"]
-        B1 --> B2["Vault registry → vault file path"]
-        B2 --> B3["Open vault file"]
-        B3 --> B4["Locate entry by UUID"]
-        B4 --> B5["Remove entry from vault file"]
+        B1["For each entry: fingerprint + vault name"] --> B2["Vault registry -> file path"]
+        B2 --> B3["Open vault file, locate entry by UUID"]
+        B3 --> B4["Remove entry from vault"]
     end
 
     subgraph ChainC["Chain C: Registry Cleanup"]
-        C1["Master registry: remove all system entries"]
-        C1 --> C2["Remove notebook from master registry"]
+        C1["Master registry: remove all system entries for this notebook"] --> C2["Remove notebook from registry"]
     end
 
     subgraph ChainD["Chain D: Filesystem Deletion"]
@@ -162,16 +183,16 @@ flowchart TD
     end
 
     subgraph Operation["Operation: Erase Notebook"]
-        O1["Collect all trusted device entries"]
-        O2["For each entry: remove from vault"]
+        O1["Collect all trusted entries"]
+        O2["For each: remove from vault"]
         O3["Remove notebook from master registry"]
         O4["Delete notebook folder"]
-        O5["Clear SessionKeyVault cache"]
+        O5["Clear SessionKeyVault cache and lock"]
     end
 
     A4 --> O1
     O1 --> B1
-    B5 --> O2
+    B4 --> O2
 
     A2 --> C1
     C2 --> O3
@@ -188,35 +209,35 @@ flowchart TD
 
 ---
 
-## 5c. Flowchart of Convergence – Search Operation
+### 5d. Search Operation (Current + Historical)
 
 ```mermaid
 flowchart TD
-    subgraph ChainA["Chain A: Notebook Context (Local)"]
+    subgraph ChainA["Chain A: Current Notebook Context"]
         A1["Current notebook UUID"] --> A2["Master registry"]
-        A2 --> A3["Read structure.json for descendant item UUIDs"]
+        A2 --> A3["Read structure.json -> list descendant UUIDs"]
     end
 
-    subgraph ChainB["Chain B: Vault → Keys (for decryption)"]
-        B1["Notebook UUID → entry UUID"] --> B2["Vault file"]
-        B2 --> B3["Hardware fingerprint: decrypt keys"]
+    subgraph ChainB["Chain B: Decryption Keys"]
+        B1["Notebook UUID -> entry UUID"] --> B2["Vault file"]
+        B2 --> B3["Hardware fingerprint decrypts keys"]
     end
 
-    subgraph ChainC["Chain C: In‑Memory Search (Current Items)"]
+    subgraph ChainC["Chain C: In-Memory Search (Current Items)"]
         C1["For each descendant UUID"] --> C2["Read item content (decrypted)"]
-        C2 --> C3["Match against query"]
+        C2 --> C3["Match against query string"]
     end
 
     subgraph ChainD["Chain D: Git History Search (Historical Items)"]
-        D1["Query: deleted* or renamed*"] --> D2["Git log --grep"]
+        D1["Query: deleted*, renamed*, etc."] --> D2["Git log --grep with action prefixes"]
         D2 --> D3["Extract UUID from commit messages"]
-        D3 --> D4["Reconstruct items from parent commit"]
+        D3 --> D4["Reconstruct item from commit before deletion or rename"]
     end
 
-    subgraph Operation["Operation: Search"]
-        O1["Results from Chain C (current items)"]
-        O2["Results from Chain D (historical items)"]
-        O3["Merge results (deduplicate by UUID)"]
+    subgraph Operation["Operation: Search Results"]
+        O1["Current items (Chain C)"]
+        O2["Historical items (Chain D)"]
+        O3["Deduplicate by UUID"]
         O4["Sort by date"]
         O5["Display paginated results"]
     end
@@ -235,25 +256,11 @@ flowchart TD
 
 ---
 
-## Explanation of the Search Operation Flow
-
-The search operation demonstrates a different kind of convergence: two completely independent chains (one for current items, one for historical items) run in parallel and their results are merged.
-
-| Chain | Input | Output |
-|-------|-------|--------|
-| **A + C** | Current notebook UUID → descendant UUIDs → item titles/content | List of matching current notes/files |
-| **B** | Notebook UUID → vault → decrypted keys | Used to decrypt current item content |
-| **D** | Search query (`deleted*`, `renamed*`, etc.) + Git log | List of reconstructed deleted/renamed items |
-
-The two result sets are deduplicated by UUID and merged into a single list sorted by date. The operation meeting point is the **merge + sort** step, where data from both chains are combined without one controlling the other.
-
----
-
 ## 6. Why O(1) Complexity Is Achievable
 
-Each resolution step uses a direct key lookup in a static dictionary (JSON object). The dictionary is read from disk or network once per operation (or cached with validation). There is no iteration over lists, no search across unrelated entries, no pattern matching. Therefore, the time to resolve a UUID does **not** grow with the number of notebooks, vaults, or items.
+Each resolution step is a direct key lookup in a static dictionary (JSON object). The dictionary is read from disk or network once per operation (or cached with validation). There is no iteration over lists, no search across unrelated entries, no pattern matching. Therefore, the time to resolve a UUID does **not** grow with the number of notebooks, vaults, or items.
 
-The only operations that do not follow O(1) are:
+The only exceptions:
 
 - Git log queries (O(log N) due to index) – but the resolution from UUID to the command is O(1).
 - Traversal of notebook hierarchy for activity view (proportional to number of descendants) – but each step is O(1).
@@ -290,15 +297,13 @@ The resolution steps remain the same; only the method of reading the artifact ch
 
 ## 9. Relation to Operation Types
 
-The convergence pattern applies to every major operation in the application:
-
 | Operation | Chains Involved | Meeting Point |
 |-----------|----------------|---------------|
 | Create note | Notebook location, vault keys, new UUID generation | Write to `notes.json` and `structure.json` |
 | Edit note | Notebook location, vault keys, item UUID | Write to `notes.json`, Git commit |
 | Delete note | Notebook location, vault keys, item UUID | Remove from `structure.json`, Git commit |
 | Rename note | Notebook location, vault keys, item UUID | Update `structure.json`, Git commit |
-| Search | Current notebook hierarchy, vault keys (to decrypt) | Display results (no write) |
+| Search | Current notebook hierarchy, vault keys (to decrypt) | Merge and display results |
 | Timeline | Item UUID, Git log | Parse commit messages |
 | Activity | Notebook UUID, descendant UUIDs, Git log | Aggregate results |
 
