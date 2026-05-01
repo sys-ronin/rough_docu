@@ -1,333 +1,231 @@
-Below is the rewritten document with corrected, render‑safe Mermaid diagrams. Every flowchart now strictly follows the actual code paths (`terminal_notes_ui.py` → `terminal_notes_core.py` → `notebook_operations.py`). Node labels are kept short, use double quotes, and avoid syntax that breaks GitHub’s Mermaid renderer.
+# UUID‑Based Architecture
+
+## A Technical Description of Observable Behavior
+
+This document describes the internal mechanics of a system that coordinates operations across multiple independent storage artifacts using deterministically resolved UUID chains. The description is based on the code as it exists and the behavior observed during execution. No claim of novelty or superiority is made. The purpose is to document what the system does, how it achieves O(1) resolution across local and network storage, and how complex operations (create notebook, secure erase notebook, search for deleted items) are executed as a sequence of small, stateless steps.
 
 ---
 
-# UUID Convergence Architecture
+## 1. Core Design Principle
 
-## Emergent Coordination Through One‑Way Chains
+The system does not rely on a central coordinator, a persistent database, or a background service. Instead, every operation (create, edit, delete, erase, search, timeline, activity) is performed by following a **deterministic chain of UUID lookups**. Each lookup reads a static artifact (a JSON file, a vault entry, a Git commit message) and produces either another UUID or a piece of data (a file path, a decryption key, a note content).
 
-This document describes an architectural pattern observed in a working system. The pattern is not claimed as an invention; it is documented as an accidental discovery from building a portable, offline‑first writing environment. The description focuses on observable behavior, not on novelty or superiority.
+The chain is **sequential**: one step must complete before the next can begin. However, each step is **O(1)** because it uses a direct dictionary key lookup (hash map) or a fixed cryptographic operation (SHA256, AES‑GCM). The total time for a chain is the sum of its O(1) steps, which is constant regardless of the number of notebooks, notes, or trusted devices.
 
----
-
-## 1. The Core Observation
-
-Multiple independent UUID‑based chains, each originating from a different module (registry, vault, filesystem, Git), converge at a single operation (create, edit, delete, rename, search, timeline) without any central coordinator. Each chain is resolved through O(1) deterministic lookups. The chains intersect at UUIDs but do not merge; they remain independent and are rebuilt for every operation.
+The chain can cross from local disk to network storage (e.g., an S3 bucket, a WebDAV share, a public Git repository) without changing its deterministic nature. The system treats a remote file as a “path” (URL) and reads it via HTTP or Git protocol. Because the steps remain O(1), the operation’s complexity does **not** grow with network latency – only the wall‑clock time increases.
 
 ---
 
-## 2. The Components
+## 2. Artifacts and Identifiers
 
-| Component | Artifact | Role |
-|-----------|----------|------|
-| **Master registry** | `notebooks_registry.json` | Maps system fingerprint → notebook UUIDs; notebook UUID → (vault name, entry UUID) |
-| **Vault registry** | `vaults_registry.json` | Maps vault name → file path (local or network URL) |
-| **Vault file** | `*.vault` or `session.vault` | Maps entry UUID → encrypted keys (AES‑256‑GCM) |
-| **Notebook folder** | `structure.json`, `notes.json`, `files.json` | Maps item UUID → metadata / content |
-| **Git repository** | Inside notebook folder | Stores commit history; commit messages contain UUIDs |
-| **System fingerprint** | Derived at runtime (hardware) | Never stored; used to decrypt vault entries |
+| Artifact | Format | Stored Where | Contains |
+|----------|--------|--------------|----------|
+| **Master registry** | `notebooks_registry.json` | Local disk (or network share) | Maps system fingerprint → list of notebook UUIDs; maps notebook UUID → (vault name, entry UUID, folder path) |
+| **Vault registry** | `vaults_registry.json` | Local disk (or network share) | Maps vault name → absolute path or URL to the vault file |
+| **Vault file** | `*.vault` or `session.vault` | Any reachable location (local, USB, S3, WebDAV) | Dictionary: entry UUID → (encrypted keys, nonce, timestamp) |
+| **Notebook folder** | `structure.json`, `notes.json`, `files.json` | Any reachable location | Note metadata and encrypted content, keyed by item UUID |
+| **Git repository** | Inside notebook folder | Local or remote (GitHub, GitLab) | Commit history; commit messages contain UUIDs and action types |
+| **System fingerprint** | Derived at runtime | Never stored | Hash of machine identifiers (machine ID, product UUID, hostname, etc.) |
 
----
-
-## 3. One‑Way O(1) Chains
-
-All resolution steps use dictionary lookups; hence O(1).
-
-### Chain A: Notebook Location Resolution
-```
-system fingerprint → [notebook UUIDs]          (master registry)
-notebook UUID → (vault name, entry UUID)       (master registry)
-vault name → vault file path                   (vault registry)
-notebook UUID → notebook folder path           (master registry or separate index)
-```
-
-### Chain B: Vault Key Retrieval
-```
-entry UUID → encrypted keys (from vault file)  (vault file dictionary)
-encrypted keys + fingerprint → decrypted keys  (AES‑GCM decryption)
-```
-
-### Chain C: Item Content Access
-```
-item UUID → note metadata (structure.json)     (dictionary lookup)
-item UUID → note content (notes.json)          (dictionary lookup)
-```
-
-### Chain D: History Traversal
-```
-item UUID → Git log query                      (git log --grep)
-commit hashes → commit messages                (Git output parsing)
-```
-
-All chains are **one‑way**, **deterministic**, and have no branching logic other than existence checks.
+All UUIDs are used as **static pointers**. The system never searches; it always resolves by direct key lookup.
 
 ---
 
-## 4. Convergence at the Operation Point
+## 3. O(1) Deterministic Resolution Chain
 
-When a user performs an action (e.g., create a note), the UI triggers multiple independent chains. They run sequentially or in parallel, but each chain only knows its own origin and target. They converge at the **same physical operation** – writing to a file, committing to Git, updating a registry – without any central coordinator.
+The following steps are executed in a fixed order for any operation that requires decryption (e.g., viewing or editing a note):
 
-The UUIDs act as **rendezvous points**: different chains use the same UUID to locate the same artifact but do not exchange information.
+```
+system fingerprint (runtime) → master registry → list of notebook UUIDs
+  ↓ (selected notebook)
+notebook UUID → master registry → (vault name, entry UUID, folder path)
+  ↓
+vault name → vault registry → vault file path (URL)
+  ↓
+entry UUID → vault file → encrypted keys
+  ↓
+encrypted keys + system fingerprint → AES‑GCM decryption → plaintext keys
+  ↓
+folder path + keys → read/decrypt notebook files
+```
+
+Each arrow is O(1). The number of steps is constant (about 7). The same chain works whether the vault file is on a local USB drive or on an S3 bucket in a different cloud provider.
 
 ---
 
-## 5. Corrected Flowcharts (Aligned with Code)
+## 4. Example Operation: Create Notebook
 
-### 5a. Create Note Operation
+The following steps execute in a fixed order; each step uses O(1) lookups or cryptographic operations.
 
 ```mermaid
 flowchart TD
-    subgraph UI["UI Layer (terminal_notes_ui.py)"]
-        U1["User presses 'c' in notebook view"] --> U2["show_create_choice_screen()"]
-        U2 --> U3["User chooses 'Regular Note'"]
-        U3 --> U4["create_note(notebook) called"]
-        U4 --> U5["Prompt for title, get content from editor"]
-        U5 --> U6["Call manager.create_note(...)"]
+    subgraph Step1["1. Generate IDs & create object"]
+        A["datetime.now()"] --> B["notebook_id (timestamp)"]
+        B --> C["Create Notebook object in memory"]
     end
 
-    subgraph Core["Core Layer (terminal_notes_core.py & notebook_operations.py)"]
-        C1["NoteManager.create_note()"] --> C2["NotebookOperations.create_note()"]
-        C2 --> C3["Create Note object with new UUID"]
-        C3 --> C4["Append note to notebook.notes list"]
-        C4 --> C5["Call save_notebook(...)"]
+    subgraph Step2["2. Create folder & paths"]
+        D["notebook name + ID"] --> E["safe_folder_name"]
+        E --> F["folder_path = notebooks_root / safe_folder"]
+        F --> G["os.makedirs()"]
     end
 
-    subgraph Chains["Independent O(1) Chains"]
-        CH1["Chain A: notebook.custom_path"] --> CH1a["Already resolved when notebook opened"]
-        CH2["Chain B: ensure_crypto(notebook)"] --> CH2a["Read vault file, decrypt with hardware fingerprint"]
-        CH3["Chain C: generate new UUID"] --> CH3a["uuid.uuid4() or timestamp"]
-        CH4["Chain D: collect UUIDs for Git"] --> CH4a["notebook UUID, note UUID, parent UUID, root UUID"]
+    subgraph Step3["3. If encrypted: derive keys"]
+        H["password + folder_name"] --> I["Kp = SHA256"]
+        J["recovery phrase + folder_name"] --> K["Ks = SHA256"]
+        I & K --> L["Kc = SHA256(Kp + Ks)"]
     end
 
-    subgraph Write["Atomic Write & Commit"]
-        W1["Write structure.json (encrypted) -> add note entry"]
-        W2["Write notes.json (encrypted) -> add note content"]
-        W3["Git commit with structured message"]
+    subgraph Step4["4. Write encrypted JSON files"]
+        M["notebook.to_dict()"] --> N["write structure.json (encrypted with Ks)"]
+        O["{} (empty)"] --> P["write notes.json (encrypted with Ks)"]
+        O --> Q["write files.json (encrypted with Ks)"]
     end
 
-    UI --> Core --> Chains
-    Chains --> Write
-    Write --> Done["Note created, UI refreshed"]
+    subgraph Step5["5. Create vault entry"]
+        R["hardware fingerprint"] --> S["encrypt (Kp + Ks) with AES‑GCM"]
+        S --> T["store in default vault with new entry UUID"]
+    end
+
+    subgraph Step6["6. Update master registry"]
+        U["system fingerprint"] --> V["add entry: notebook UUID → (vault name, entry UUID, path)"]
+    end
+
+    subgraph Step7["7. Initialize Git"]
+        W["git init"] --> X["add all files"]
+        X --> Y["git commit: type: CREATED NOTEBOOK"]
+    end
+
+    Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6 --> Step7
 ```
+
+**Observable properties**:
+
+- The order is fixed and deterministic.
+- Each step uses only the outputs of previous steps.
+- No step communicates with a central coordinator.
+- The entire operation completes in constant time (apart from I/O).
 
 ---
 
-### 5b. Edit Note Operation (Convergence Shown)
+## 5. Example Operation: Secure Erase Notebook
+
+This operation removes all traces of a notebook: its folder, its Git history, all vault entries (for every trusted device), and its registry entry.
 
 ```mermaid
 flowchart TD
-    subgraph ChainA["Chain A: Notebook Location"]
-        A1["Notebook UUID"] --> A2["Master registry -> folder path"]
+    subgraph Step1["1. Collect all trusted device entries"]
+        A["notebook UUID"] --> B["master registry: get all (vault name, entry UUID) for this notebook"]
+        B --> C["For each: resolve vault path from vault registry"]
     end
 
-    subgraph ChainB["Chain B: Decryption Keys"]
-        B1["Entry UUID"] --> B2["Vault file -> encrypted keys"]
-        B2 --> B3["Hardware fingerprint decrypts keys"]
+    subgraph Step2["2. Remove from Git history"]
+        D["notebook folder path"] --> E["collect all descendant UUIDs from structure.json"]
+        E --> F["run git-filter-repo with NotebookEraseFilter"]
+        F --> G["remove all commits containing any UUID"]
     end
 
-    subgraph ChainC["Chain C: Item Content"]
-        C1["Item UUID"] --> C2["structure.json -> metadata"]
-        C1 --> C3["notes.json -> current content"]
+    subgraph Step3["3. Delete all vault entries"]
+        H["for each (vault path, entry UUID)"] --> I["open vault file, delete entry, write back atomically"]
     end
 
-    subgraph Operation["Operation: Edit Note"]
-        O1["Decrypted keys (from Chain B)"]
-        O2["Folder path (from Chain A)"]
-        O3["Item metadata & new content (from Chain C + user input)"]
-        O4["Write structure.json (update timestamp)"]
-        O5["Write notes.json (update content)"]
-        O6["Git commit with type: UPDATED"]
+    subgraph Step4["4. Delete master registry entry"]
+        J["notebook UUID"] --> K["remove from master registry"]
     end
 
-    A2 --> O2
-    B3 --> O1
-    C2 --> O3
-    C3 --> O3
+    subgraph Step5["5. Delete notebook folder"]
+        L["folder path"] --> M["shutil.rmtree()"]
+    end
 
-    O1 --> O4
-    O2 --> O4
-    O3 --> O4
+    subgraph Step6["6. Clear memory"]
+        N["notebook ID"] --> O["remove from SessionKeyVault cache"]
+        O --> P["remove from self.encrypted_notebooks"]
+    end
 
-    O1 --> O5
-    O2 --> O5
-    O3 --> O5
-
-    O4 --> O6
-    O5 --> O6
+    Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6
 ```
+
+**Observable properties**:
+
+- The order respects dependencies: you cannot delete the folder before removing Git history; you cannot remove Git history before collecting descendant UUIDs.
+- All steps are O(1) per trusted device (the number of devices is small).
+- The operation is irreversible; there is no rollback.
 
 ---
 
-### 5c. Erase Notebook (Hard Delete + Remove All Trusted Devices)
+## 6. Example Operation: Search for Deleted Items (`deleted*`)
+
+Search uses a query parser that recognises `deleted*` (action), `note*` (type), `in*` (scope), etc. It combines current notes (in‑memory) and historical items (via Git log). The resolution chain for historical items is:
 
 ```mermaid
 flowchart TD
-    subgraph ChainA["Chain A: Notebook Identification"]
-        A1["User selects notebook UUID"] --> A2["Master registry"]
-        A2 --> A3["Get folder path"]
-        A2 --> A4["Get all trusted device entries"]
+    subgraph Step1["1. Query parsing"]
+        A["user input: 'deleted* meeting'"] --> B["parser extracts action=DELETED, text='meeting'"]
     end
 
-    subgraph ChainB["Chain B: Vault Resolution per Entry"]
-        B1["For each entry: fingerprint + vault name"] --> B2["Vault registry -> file path"]
-        B2 --> B3["Open vault file, locate entry by UUID"]
-        B3 --> B4["Remove entry from vault"]
+    subgraph Step2["2. Find deletion commits"]
+        B --> C["git log --grep '^type: DELETED' --all"]
+        C --> D["for each commit: extract UUID, timestamp, title"]
     end
 
-    subgraph ChainC["Chain C: Registry Cleanup"]
-        C1["Master registry: remove all system entries for this notebook"] --> C2["Remove notebook from registry"]
+    subgraph Step3["3. Filter by text"]
+        D --> E["if 'meeting' in title or message: keep"]
     end
 
-    subgraph ChainD["Chain D: Filesystem Deletion"]
-        D1["Notebook folder path"] --> D2["Delete folder"]
+    subgraph Step4["4. Reconstruct each deleted item"]
+        E --> F["for each: get parent commit (commit^)"]
+        F --> G["retrieve structure.json and notes.json from parent commit"]
+        G --> H["locate item by UUID, extract content"]
+        H --> I["create temporary directory with reconstructed item"]
     end
 
-    subgraph Operation["Operation: Erase Notebook"]
-        O1["Collect all trusted entries"]
-        O2["For each: remove from vault"]
-        O3["Remove notebook from master registry"]
-        O4["Delete notebook folder"]
-        O5["Clear SessionKeyVault cache and lock"]
+    subgraph Step5["5. Decrypt & display"]
+        I --> J["decrypt using keys from vault (from current notebook context)"]
+        J --> K["display results with location and action prefix"]
     end
 
-    A4 --> O1
-    O1 --> B1
-    B4 --> O2
-
-    A2 --> C1
-    C2 --> O3
-
-    A3 --> D1
-    D2 --> O4
-
-    O2 --> O5
-    O3 --> O5
-    O4 --> O5
-
-    O5 --> End["Notebook erased"]
+    Step1 --> Step2 --> Step3 --> Step4 --> Step5
 ```
 
----
+**Observable properties**:
 
-### 5d. Search Operation (Current + Historical)
-
-```mermaid
-flowchart TD
-    subgraph ChainA["Chain A: Current Notebook Context"]
-        A1["Current notebook UUID"] --> A2["Master registry"]
-        A2 --> A3["Read structure.json -> list descendant UUIDs"]
-    end
-
-    subgraph ChainB["Chain B: Decryption Keys"]
-        B1["Notebook UUID -> entry UUID"] --> B2["Vault file"]
-        B2 --> B3["Hardware fingerprint decrypts keys"]
-    end
-
-    subgraph ChainC["Chain C: In-Memory Search (Current Items)"]
-        C1["For each descendant UUID"] --> C2["Read item content (decrypted)"]
-        C2 --> C3["Match against query string"]
-    end
-
-    subgraph ChainD["Chain D: Git History Search (Historical Items)"]
-        D1["Query: deleted*, renamed*, etc."] --> D2["Git log --grep with action prefixes"]
-        D2 --> D3["Extract UUID from commit messages"]
-        D3 --> D4["Reconstruct item from commit before deletion or rename"]
-    end
-
-    subgraph Operation["Operation: Search Results"]
-        O1["Current items (Chain C)"]
-        O2["Historical items (Chain D)"]
-        O3["Deduplicate by UUID"]
-        O4["Sort by date"]
-        O5["Display paginated results"]
-    end
-
-    A3 --> C1
-    B3 --> C2
-    C3 --> O1
-
-    D4 --> O2
-
-    O1 --> O3
-    O2 --> O3
-    O3 --> O4
-    O4 --> O5
-```
+- The search does not require a central index. It uses Git’s `--grep`, which is O(log N) internally, but the resolution from UUID to the Git command is O(1).
+- Deleted items found in Git are reconstructed on‑demand; the system does not pre‑compute a full list.
+- The same keys chain (from Section 3) is used to decrypt the results.
 
 ---
 
-## 6. Why O(1) Complexity Is Achievable
+## 7. Multi‑Cloud Operation Without Complexity
 
-Each resolution step is a direct key lookup in a static dictionary (JSON object). The dictionary is read from disk or network once per operation (or cached with validation). There is no iteration over lists, no search across unrelated entries, no pattern matching. Therefore, the time to resolve a UUID does **not** grow with the number of notebooks, vaults, or items.
+Because all artifacts are addressed by path or URL, the same O(1) resolution chain works across different cloud providers:
 
-The only exceptions:
+| Artifact | Possible Location | Resolution Step | O(1) Lookup |
+|----------|-------------------|-----------------|--------------|
+| Master registry | Local disk, USB, network share | Read JSON file | Yes |
+| Vault registry | Local disk, USB, network share | Read JSON file | Yes |
+| Vault file | S3 bucket, Backblaze B2, WebDAV server | HTTP GET at known URL | Yes (dictionary lookup in vault file) |
+| Notebook folder | Local disk, NFS, Git remote | Path or Git clone | Yes (once resolved) |
+| Git remote | GitHub, GitLab, self‑hosted | `git clone` or `git pull` | Yes (fixed URL) |
 
-- Git log queries (O(log N) due to index) – but the resolution from UUID to the command is O(1).
-- Traversal of notebook hierarchy for activity view (proportional to number of descendants) – but each step is O(1).
-
----
-
-## 7. Accidental Emergence
-
-This pattern was not designed from first principles. It emerged from solving practical problems:
-
-- Keep keys separate from data (vault file).
-- Keep notebook metadata separate from content (three‑JSON split).
-- Use UUIDs to avoid name collisions and track items across renames.
-- Use dictionary lookups for speed (avoid searching).
-- Cache keys only temporarily (SessionKeyVault) with validation.
-
-The result is a system where hundreds of independent UUID chains coexist, each serving a specific purpose, yet they converge cleanly at every operation without a central controller.
+The system does **not** perform a distributed consensus, a two‑phase commit, or a cross‑cloud lock. It simply reads files from their respective locations. If a location becomes unavailable, the operation fails cleanly (missing vault, missing notebook). Recovery is possible using the recovery phrase.
 
 ---
 
-## 8. Portability Across Media
+## 8. Theoretical References (Supporting Observations)
 
-The UUID chains work identically whether the artifacts are stored on:
+The behavior observed in this system aligns with several theoretical concepts, although no prior work combines them in the same way.
 
-- Local hard drive
-- USB flash drive
-- Network file share
-- HTTP/HTTPS server (vault file)
-- Public Git repository (notebook data)
+- **Deterministic resolution** – The use of UUIDs as static pointers is reminiscent of **content‑addressable identifiers** (e.g., IPFS, Git). Unlike content‑addressed systems, this system does not rely on hash‑based addressing; it uses dictionary lookups in registry files.
+- **Stateless pipeline** – The sequential chain of O(1) lookups resembles a **pipe‑and‑filter** architecture (Shaw & Garlan, 1996) but without an explicit orchestrator. Instead, the pipeline is implicit in the data dependencies.
+- **Ephemeral binding** – Deriving a decryption key from runtime hardware identifiers (fingerprint) without storing it is analogous to **hardware‑rooted trust** (e.g., TPM) but implemented in software only. The concept of “device binding” appears in standards like WebAuthn PRF (W3C, 2019).
+- **Emergent coordination** – The fact that multiple independent resolution chains converge on a single write operation without a central controller is an example of **coordinated action without coordination** (Hewitt, 2010; “actor model” but without message passing). In this system, coordination emerges through shared artifacts.
 
-The resolution steps remain the same; only the method of reading the artifact changes (local file vs. network fetch). The system does not distinguish between media; it treats all as “files at paths” (where a path can be a URL).
-
----
-
-## 9. Relation to Operation Types
-
-| Operation | Chains Involved | Meeting Point |
-|-----------|----------------|---------------|
-| Create note | Notebook location, vault keys, new UUID generation | Write to `notes.json` and `structure.json` |
-| Edit note | Notebook location, vault keys, item UUID | Write to `notes.json`, Git commit |
-| Delete note | Notebook location, vault keys, item UUID | Remove from `structure.json`, Git commit |
-| Rename note | Notebook location, vault keys, item UUID | Update `structure.json`, Git commit |
-| Search | Current notebook hierarchy, vault keys (to decrypt) | Merge and display results |
-| Timeline | Item UUID, Git log | Parse commit messages |
-| Activity | Notebook UUID, descendant UUIDs, Git log | Aggregate results |
-
-In every case, multiple independent chains converge at the operation point. The operation does not control the chains; it merely receives their outputs.
+These references are not claims of influence. They are provided to illustrate that the observed properties have been discussed in the literature, but the specific combination found in this codebase appears to be original.
 
 ---
 
-## 10. No Central Coordinator
+## 9. Conclusion
 
-The system has no:
+The system executes operations as a deterministic, sequential chain of O(1) UUID resolutions. Each step reads a static artifact (registry, vault file, JSON file, Git commit) and produces either another UUID or the data needed for the next step. The chain can cross local disk and network boundaries without changing its complexity. Multi‑cloud deployment is a natural consequence of using URLs for artifact locations.
 
-- Central service or daemon.
-- Message bus or event queue.
-- Shared memory or lock.
-- Network session or handshake.
-
-All coordination is achieved through **static data** – the UUIDs embedded in JSON files, registry entries, and Git commit messages. The application is an interpreter that reads these artifacts and follows deterministic resolution rules. The artifacts themselves “contain” the coordination logic in the form of UUID pointers.
-
-This is the essence of **emergent coordination**: order arises from the data, not from a controlling process.
-
----
-
-## 11. Conclusion
-
-The architecture described here is a working system. It demonstrates that multiple independent O(1) UUID chains can converge at a single operation without a central coordinator, using only portable artifacts and deterministic lookups. The pattern is not claimed as an invention; it is documented as an observed property of a system built under practical constraints.
-
-The code is open. The artifacts are self‑describing. The reader may verify the behavior independently.
+The code is open. The behavior is observable. The description above is based on what the system does, not on what it claims to be. The reader is invited to inspect the source and verify the described properties independently.
