@@ -261,4 +261,12 @@ The system executes operations as a set of independent, deterministic O(1) resol
 
 The code is open. The behavior is observable. The description above is based on what the system does, not on what it claims to be. The reader is invited to inspect the source and verify the described properties independently.
 
+---
+
+## 10. Prior Art Notification
+
+This document describes a working system publicly available in a timestamped source code repository (April 2026). The described architecture may constitute prior art under **35 U.S.C. § 102(a)(1)** (US) and **EPC Article 54(2)** (Europe). Under **EPO decision G 1/23 (2025)**, public availability alone is sufficient.
+
+The system is released under the Eternal License, which prohibits patenting any disclosed concept. Readers considering patent applications in related fields are advised to review this document.
+
 ```
