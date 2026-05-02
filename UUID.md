@@ -2,17 +2,21 @@
 
 ## A Technical Description of Observable Behavior
 
-This document describes the internal mechanics of a system that coordinates operations across multiple independent storage artifacts using deterministically resolved UUID chains. The description is based on the code as it exists and the behavior observed during execution. No claim of novelty or superiority is made. The purpose is to document what the system does, how it achieves O(1) resolution across local and network storage, and how complex operations (create notebook, secure erase notebook, search for deleted items) are executed as a sequence of small, stateless steps.
+This document describes the internal mechanics of a system that coordinates operations across multiple independent storage artifacts using deterministically resolved UUID chains. The description is based on the code as it exists and the behavior observed during execution. No claim of novelty or superiority is made. The purpose is to document what the system does, how it achieves O(1) resolution across local and network storage, and how complex operations (create note, edit note, search deleted items, secure erase notebook) are executed as a sequence of small, stateless steps.
+
+The system uses three independent resolution chains that start from different identifiers, proceed in parallel, and converge only at the final write or display operation. Each chain is O(1) per step and does not require a central coordinator.
 
 ---
 
 ## 1. Core Design Principle
 
-The system does not rely on a central coordinator, a persistent database, or a background service. Instead, every operation (create, edit, delete, erase, search, timeline, activity) is performed by following a **deterministic chain of UUID lookups**. Each lookup reads a static artifact (a JSON file, a vault entry, a Git commit message) and produces either another UUID or a piece of data (a file path, a decryption key, a note content).
+The system does not rely on a central coordinator, a persistent database, or a background service. Instead, every operation is performed by following **multiple deterministic UUID chains** that start from different origins:
 
-The chain is **sequential**: one step must complete before the next can begin. However, each step is **O(1)** because it uses a direct dictionary key lookup (hash map) or a fixed cryptographic operation (SHA256, AES‑GCM). The total time for a chain is the sum of its O(1) steps, which is constant regardless of the number of notebooks, notes, or trusted devices.
+- **Chain A:** Resolves the notebook folder path (from an in‑memory object).
+- **Chain B:** Resolves the decryption keys (from the master registry, vault registry, and vault file).
+- **Chain C:** Prepares the note data and Git commit metadata (from user input and the note object).
 
-The chain can cross from local disk to network storage (e.g., an S3 bucket, a WebDAV share, a public Git repository) without changing its deterministic nature. The system treats a remote file as a “path” (URL) and reads it via HTTP or Git protocol. Because the steps remain O(1), the operation’s complexity does **not** grow with network latency – only the wall‑clock time increases.
+These chains execute independently but are orchestrated by the code order. Their outputs converge at the **write phase** (filesystem and Git) for create, edit, delete, rename, or at the **display phase** for search, timeline, and activity.
 
 ---
 
@@ -31,173 +35,200 @@ All UUIDs are used as **static pointers**. The system never searches; it always 
 
 ---
 
-## 3. O(1) Deterministic Resolution Chain
+## 3. Example Operation: Create Note (`c`)
 
-The following steps are executed in a fixed order for any operation that requires decryption (e.g., viewing or editing a note):
-
-```
-system fingerprint (runtime) → master registry → list of notebook UUIDs
-  ↓ (selected notebook)
-notebook UUID → master registry → (vault name, entry UUID, folder path)
-  ↓
-vault name → vault registry → vault file path (URL)
-  ↓
-entry UUID → vault file → encrypted keys
-  ↓
-encrypted keys + system fingerprint → AES‑GCM decryption → plaintext keys
-  ↓
-folder path + keys → read/decrypt notebook files
-```
-
-Each arrow is O(1). The number of steps is constant (about 7). The same chain works whether the vault file is on a local USB drive or on an S3 bucket in a different cloud provider.
-
----
-
-## 4. Example Operation: Create Notebook
-
-The following steps execute in a fixed order; each step uses O(1) lookups or cryptographic operations.
+The user presses `c`, enters title and content, and chooses an editor. The system spawns three independent chains.
 
 ```mermaid
 flowchart TD
-    subgraph Step1["1. Generate IDs & create object"]
-        A["datetime.now()"] --> B["notebook_id (timestamp)"]
-        B --> C["Create Notebook object in memory"]
+    subgraph UserInitiated["User presses 'c'"]
+        A1["User enters title and content"] --> A2["Capture content"]
     end
 
-    subgraph Step2["2. Create folder & paths"]
-        D["notebook name + ID"] --> E["safe_folder_name"]
-        E --> F["folder_path = notebooks_root / safe_folder"]
-        F --> G["os.makedirs()"]
+    subgraph Operation["Create Note Operation"]
+        B1["Generate new UUID for note"] --> B2["Create Note object in memory"]
+        B2 --> B3["Append note to notebook.notes list"]
     end
 
-    subgraph Step3["3. If encrypted: derive keys"]
-        H["password + folder_name"] --> I["Kp = SHA256"]
-        J["recovery phrase + folder_name"] --> K["Ks = SHA256"]
-        I & K --> L["Kc = SHA256(Kp + Ks)"]
+    subgraph ChainA["Chain A: Notebook Path (O1)"]
+        C1["notebook.custom_path (from memory)"] --> C2["Resolve absolute folder path"]
     end
 
-    subgraph Step4["4. Write encrypted JSON files"]
-        M["notebook.to_dict()"] --> N["write structure.json (encrypted with Ks)"]
-        O["{} (empty)"] --> P["write notes.json (encrypted with Ks)"]
-        O --> Q["write files.json (encrypted with Ks)"]
+    subgraph ChainB["Chain B: Key Resolution (O1)"]
+        D1["notebook ID"] --> D2["Lookup entry UUID + vault name from master registry"]
+        D2 --> D3["vault registry → vault file path (local or URL)"]
+        D3 --> D4["Read vault file → fetch encrypted keys by entry UUID"]
+        D4 --> D5["Hardware fingerprint (runtime) → AES‑GCM decrypt keys"]
+        D5 --> D6["Crypto object (keys ready)"]
     end
 
-    subgraph Step5["5. Create vault entry"]
-        R["hardware fingerprint"] --> S["encrypt (Kp + Ks) with AES‑GCM"]
-        S --> T["store in default vault with new entry UUID"]
+    subgraph ChainC["Chain C: Git Metadata (O1)"]
+        E1["Note UUID (generated)"] --> E2["Collect notebook UUID, parent UUID, root UUID"]
+        E2 --> E3["Assemble commit message: type: CREATED NOTE, title, context"]
     end
 
-    subgraph Step6["6. Update master registry"]
-        U["system fingerprint"] --> V["add entry: notebook UUID → (vault name, entry UUID, path)"]
+    subgraph Write["Convergence: Write & Commit"]
+        F1["Write structure.json (notebook.to_dict()) – encrypted with keys"] --> F2["Write notes.json (add note content) – encrypted with keys"]
+        F1 --> F3["Git add structure.json"]
+        F2 --> F4["Git add notes.json"]
+        F3 & F4 --> F5["Git commit (using message from Chain C)"]
     end
 
-    subgraph Step7["7. Initialize Git"]
-        W["git init"] --> X["add all files"]
-        X --> Y["git commit: type: CREATED NOTEBOOK"]
-    end
-
-    Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6 --> Step7
+    UserInitiated --> Operation
+    Operation --> ChainA
+    Operation --> ChainB
+    Operation --> ChainC
+    ChainA --> Write
+    ChainB --> Write
+    ChainC --> Write
+    Write --> Done["Note created, UI refreshes"]
 ```
-
-**Observable properties**:
-
-- The order is fixed and deterministic.
-- Each step uses only the outputs of previous steps.
-- No step communicates with a central coordinator.
-- The entire operation completes in constant time (apart from I/O).
 
 ---
 
-## 5. Example Operation: Secure Erase Notebook
+## 4. Example Operation: Edit Note (`e`)
+
+The user presses `e`, modifies content in an external editor, and saves. The system updates the note object and triggers the three chains.
+
+```mermaid
+flowchart TD
+    subgraph UserInitiated["User presses 'e'"]
+        A1["User modifies content in external editor"] --> A2["Capture new content"]
+    end
+
+    subgraph Operation["Edit Note Operation"]
+        B1["Update note.content in memory"] --> B2["Update note.updated timestamp"]
+    end
+
+    subgraph ChainA["Chain A: Notebook Path (O1)"]
+        C1["notebook.custom_path (cached)"] --> C2["Absolute folder path"]
+    end
+
+    subgraph ChainB["Chain B: Key Resolution (O1)"]
+        D1["notebook ID"] --> D2["Lookup entry UUID + vault name from master registry"]
+        D2 --> D3["vault registry → vault file path"]
+        D3 --> D4["Read vault file → encrypted keys by entry UUID"]
+        D4 --> D5["Hardware fingerprint → decrypt keys"]
+        D5 --> D6["Crypto object (keys)"]
+    end
+
+    subgraph ChainC["Chain C: Git Metadata & Change Stats (O1)"]
+        E1["Compare old content vs new content"] --> E2["Compute added/removed characters"]
+        E2 --> E3["Collect note UUID, notebook UUID, parent, root"]
+        E3 --> E4["Assemble commit message: type: UPDATED, stats"]
+    end
+
+    subgraph Write["Convergence: Write & Commit"]
+        F1["Write notes.json (encrypted) overwriting old content"] --> F2["Git add notes.json"]
+        F1 --> F3["Git add structure.json (timestamp update)"]
+        F2 & F3 --> F4["Git commit (using message from Chain C)"]
+    end
+
+    UserInitiated --> Operation
+    Operation --> ChainA
+    Operation --> ChainB
+    Operation --> ChainC
+    ChainA --> Write
+    ChainB --> Write
+    ChainC --> Write
+    Write --> Done["Note edited, UI refreshes"]
+```
+
+---
+
+## 5. Example Operation: Search for Deleted Items (`s deleted*`)
+
+The user enters a query with an action wildcard. The system parses the query, then runs two parallel searches: one over current in‑memory notes and one over Git history. The results are merged and displayed.
+
+```mermaid
+flowchart TD
+    subgraph UserInitiated["User presses 's'"]
+        A1["User enters query (e.g., 'deleted* meeting')"] --> A2["Query parser extracts: action=DELETED, type=note, text='meeting'"]
+    end
+
+    subgraph CurrentSearch["Search Current Notes (in‑memory)"]
+        B1["Walk unlocked notebooks tree"] --> B2["Match titles/content against query text"]
+        B2 --> B3["Collect matching note UUIDs"]
+    end
+
+    subgraph HistoricalSearch["Search Deleted Items (from Git)"]
+        C1["git log --grep '^type: DELETED' --all"] --> C2["For each commit: extract UUID, title, parent commit hash"]
+        C2 --> C3["Filter by text ('meeting')"]
+        C3 --> C4["For each: reconstruct item from parent commit (git show)"]
+        C4 --> C5["Create temporary directory with reconstructed JSON files"]
+    end
+
+    subgraph ChainB["Chain B: Key Resolution (for decryption)"]
+        D1["notebook ID"] --> D2["Lookup entry UUID + vault name from master registry"]
+        D2 --> D3["vault registry → vault file path"]
+        D3 --> D4["Read vault file → encrypted keys by entry UUID"]
+        D4 --> D5["Hardware fingerprint → decrypt keys"]
+        D5 --> D6["Crypto object (keys)"]
+    end
+
+    subgraph Merge["Merge & Display"]
+        E1["Decrypt current matches with keys"] --> E2["Decrypt historical matches with keys"]
+        E1 & E2 --> E3["Combine results, add action prefix (deleted, updated, etc.)"]
+        E3 --> E4["Display paginated results"]
+    end
+
+    UserInitiated --> CurrentSearch
+    UserInitiated --> HistoricalSearch
+    CurrentSearch --> Merge
+    HistoricalSearch --> ChainB
+    ChainB --> Merge
+    Merge --> Done["Search results shown"]
+```
+
+---
+
+## 6. Example Operation: Secure Erase Notebook
 
 This operation removes all traces of a notebook: its folder, its Git history, all vault entries (for every trusted device), and its registry entry.
 
 ```mermaid
 flowchart TD
-    subgraph Step1["1. Collect all trusted device entries"]
+    subgraph Step1["Step 1: Collect all trusted device entries"]
         A["notebook UUID"] --> B["master registry: get all (vault name, entry UUID) for this notebook"]
-        B --> C["For each: resolve vault path from vault registry"]
+        B --> C["For each: resolve vault file path from vault registry"]
     end
 
-    subgraph Step2["2. Remove from Git history"]
-        D["notebook folder path"] --> E["collect all descendant UUIDs from structure.json"]
-        E --> F["run git-filter-repo with NotebookEraseFilter"]
-        F --> G["remove all commits containing any UUID"]
+    subgraph Step2["Step 2: Purge Git history"]
+        D["notebook folder path"] --> E["Collect all descendant UUIDs from structure.json (recursive)"]
+        E --> F["Run git-filter-repo with NotebookEraseFilter"]
+        F --> G["Remove all commits containing any UUID"]
     end
 
-    subgraph Step3["3. Delete all vault entries"]
-        H["for each (vault path, entry UUID)"] --> I["open vault file, delete entry, write back atomically"]
+    subgraph Step3["Step 3: Delete all vault entries"]
+        H["For each (vault path, entry UUID)"] --> I["Open vault file (local or HTTP GET if remote)"]
+        I --> J["Delete entry with matching entry UUID"]
+        J --> K["Write vault file back atomically (.tmp → rename)"]
     end
 
-    subgraph Step4["4. Delete master registry entry"]
-        J["notebook UUID"] --> K["remove from master registry"]
+    subgraph Step4["Step 4: Delete master registry entry"]
+        L["notebook UUID"] --> M["Remove from master registry"]
+        M --> N["Save registry atomically"]
     end
 
-    subgraph Step5["5. Delete notebook folder"]
-        L["folder path"] --> M["shutil.rmtree()"]
+    subgraph Step5["Step 5: Delete notebook folder"]
+        O["folder path"] --> P["shutil.rmtree()"]
     end
 
-    subgraph Step6["6. Clear memory"]
-        N["notebook ID"] --> O["remove from SessionKeyVault cache"]
-        O --> P["remove from self.encrypted_notebooks"]
+    subgraph Step6["Step 6: Clear memory"]
+        Q["notebook ID"] --> R["Remove from SessionKeyVault cache"]
+        R --> S["Remove from self.encrypted_notebooks set"]
+        S --> T["Clear cached crypto object from notebook._crypto"]
     end
 
     Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6
+    Step6 --> Done["Secure erase complete. Notebook no longer exists."]
 ```
-
-**Observable properties**:
-
-- The order respects dependencies: you cannot delete the folder before removing Git history; you cannot remove Git history before collecting descendant UUIDs.
-- All steps are O(1) per trusted device (the number of devices is small).
-- The operation is irreversible; there is no rollback.
-
----
-
-## 6. Example Operation: Search for Deleted Items (`deleted*`)
-
-Search uses a query parser that recognises `deleted*` (action), `note*` (type), `in*` (scope), etc. It combines current notes (in‑memory) and historical items (via Git log). The resolution chain for historical items is:
-
-```mermaid
-flowchart TD
-    subgraph Step1["1. Query parsing"]
-        A["user input: 'deleted* meeting'"] --> B["parser extracts action=DELETED, text='meeting'"]
-    end
-
-    subgraph Step2["2. Find deletion commits"]
-        B --> C["git log --grep '^type: DELETED' --all"]
-        C --> D["for each commit: extract UUID, timestamp, title"]
-    end
-
-    subgraph Step3["3. Filter by text"]
-        D --> E["if 'meeting' in title or message: keep"]
-    end
-
-    subgraph Step4["4. Reconstruct each deleted item"]
-        E --> F["for each: get parent commit (commit^)"]
-        F --> G["retrieve structure.json and notes.json from parent commit"]
-        G --> H["locate item by UUID, extract content"]
-        H --> I["create temporary directory with reconstructed item"]
-    end
-
-    subgraph Step5["5. Decrypt & display"]
-        I --> J["decrypt using keys from vault (from current notebook context)"]
-        J --> K["display results with location and action prefix"]
-    end
-
-    Step1 --> Step2 --> Step3 --> Step4 --> Step5
-```
-
-**Observable properties**:
-
-- The search does not require a central index. It uses Git’s `--grep`, which is O(log N) internally, but the resolution from UUID to the Git command is O(1).
-- Deleted items found in Git are reconstructed on‑demand; the system does not pre‑compute a full list.
-- The same keys chain (from Section 3) is used to decrypt the results.
 
 ---
 
 ## 7. Multi‑Cloud Operation Without Complexity
 
-Because all artifacts are addressed by path or URL, the same O(1) resolution chain works across different cloud providers:
+Because all artifacts are addressed by path or URL, the same O(1) resolution chains work across different cloud providers:
 
 | Artifact | Possible Location | Resolution Step | O(1) Lookup |
 |----------|-------------------|-----------------|--------------|
@@ -207,25 +238,27 @@ Because all artifacts are addressed by path or URL, the same O(1) resolution cha
 | Notebook folder | Local disk, NFS, Git remote | Path or Git clone | Yes (once resolved) |
 | Git remote | GitHub, GitLab, self‑hosted | `git clone` or `git pull` | Yes (fixed URL) |
 
-The system does **not** perform a distributed consensus, a two‑phase commit, or a cross‑cloud lock. It simply reads files from their respective locations. If a location becomes unavailable, the operation fails cleanly (missing vault, missing notebook). Recovery is possible using the recovery phrase.
+The system does **not** perform distributed consensus, two‑phase commit, or cross‑cloud locking. It simply reads files from their respective locations. If a location becomes unavailable, the operation fails cleanly (missing vault, missing notebook). Recovery is possible using the recovery phrase.
 
 ---
 
-## 8. Theoretical References (Supporting Observations)
+## 8. Theoretical Observations
 
 The behavior observed in this system aligns with several theoretical concepts, although no prior work combines them in the same way.
 
-- **Deterministic resolution** – The use of UUIDs as static pointers is reminiscent of **content‑addressable identifiers** (e.g., IPFS, Git). Unlike content‑addressed systems, this system does not rely on hash‑based addressing; it uses dictionary lookups in registry files.
-- **Stateless pipeline** – The sequential chain of O(1) lookups resembles a **pipe‑and‑filter** architecture (Shaw & Garlan, 1996) but without an explicit orchestrator. Instead, the pipeline is implicit in the data dependencies.
-- **Ephemeral binding** – Deriving a decryption key from runtime hardware identifiers (fingerprint) without storing it is analogous to **hardware‑rooted trust** (e.g., TPM) but implemented in software only. The concept of “device binding” appears in standards like WebAuthn PRF (W3C, 2019).
-- **Emergent coordination** – The fact that multiple independent resolution chains converge on a single write operation without a central controller is an example of **coordinated action without coordination** (Hewitt, 2010; “actor model” but without message passing). In this system, coordination emerges through shared artifacts.
+- **Deterministic resolution** – UUIDs as static pointers resemble **content‑addressable identifiers** (IPFS, Git). Unlike those systems, this system uses dictionary lookups in registry files, not hash‑based addressing.
+- **Stateless pipeline** – The sequential O(1) chains resemble a **pipe‑and‑filter** architecture (Shaw & Garlan, 1996) but without an explicit orchestrator. The pipeline is implicit in the data dependencies.
+- **Ephemeral binding** – Deriving a decryption key from runtime hardware identifiers without storing it is analogous to **hardware‑rooted trust** (TPM, WebAuthn PRF) but implemented in software only.
+- **Emergent convergence** – Multiple independent chains converge on a single operation without a central coordinator. This is an example of **coordinated action through shared data** (stigmergy).
 
-These references are not claims of influence. They are provided to illustrate that the observed properties have been discussed in the literature, but the specific combination found in this codebase appears to be original.
+These references are not claims of influence. They illustrate that the observed properties have been discussed in the literature, but the specific combination found in this codebase appears to be original.
 
 ---
 
 ## 9. Conclusion
 
-The system executes operations as a deterministic, sequential chain of O(1) UUID resolutions. Each step reads a static artifact (registry, vault file, JSON file, Git commit) and produces either another UUID or the data needed for the next step. The chain can cross local disk and network boundaries without changing its complexity. Multi‑cloud deployment is a natural consequence of using URLs for artifact locations.
+The system executes operations as a set of independent, deterministic O(1) resolution chains that start from different identifiers (notebook path, decryption keys, Git metadata) and converge only at the final write or display phase. The chains are orchestrated by the code order, not by a central coordinator. The system works across local disks, USB drives, and cloud storage without changing its complexity.
 
 The code is open. The behavior is observable. The description above is based on what the system does, not on what it claims to be. The reader is invited to inspect the source and verify the described properties independently.
+
+```
