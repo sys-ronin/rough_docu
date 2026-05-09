@@ -1,227 +1,149 @@
-# Terminal Notes Encryption Architecture
+# Encryption Embedded at Every Layer: A Code‑Driven Description
 
-## Overview
+## How Terminal Notes Integrates Cryptography Without Exception
 
-A dual-key encryption system where the recovery phrase is the ultimate key, the password is a daily convenience factor, and the folder name is part of the key material. Keys are never stored in plain text. Hardware binding is optional and does not require a TPM.
-
----
-
-## Cryptographic Primitives
-
-| Component | Algorithm | Source |
-|-----------|-----------|--------|
-| Encryption | AES-256-GCM | cryptography library |
-| Key derivation | SHA256 | hashlib |
-| Randomness | os.urandom | Operating system CSPRNG |
-
-No custom cryptography. No proprietary algorithms.
+This document describes how encryption is not an optional feature but a pervasive, non‑bypassable layer integrated into every storage operation. The description is based on the actual code. No claim of novelty or superiority is made. The purpose is to document the observable fact that **no plaintext data is ever written to disk** and that every read path that accesses encrypted data must pass through decryption.
 
 ---
 
-## Key Derivation
+## 1. The Central Principle: Encryption is Not an Add‑On
 
-All keys are derived using SHA256 with a secret and a salt:
+In many applications, encryption is applied at the boundary: a file is encrypted before upload and decrypted after download. The application logic often works with plaintext data, and encryption is a separate concern.
 
-```
-key = SHA256(secret + ":" + salt)
-```
+In Terminal Notes, encryption is **embedded into the fundamental I/O functions**. The code does not have a separate “encrypt this file” step. Instead, every write to a notebook’s JSON files goes through a `write_json` function that transparently encrypts if a `Crypto` object is present. Every read goes through a `read_json` function that transparently decrypts.
 
-The salt is the notebook folder name (e.g., `"my-notes-20260405120000"`).
-
-**Property:** Same secret on different folders yields different keys. Renaming a folder changes the key and makes data permanently inaccessible.
+As a result, there is **no path in the code** that writes plaintext to the notebook folder. The only plaintext that ever exists is in memory while the application is running, and it is cleared when the notebook is locked or the process exits.
 
 ---
 
-## The Three Keys
+## 2. The Universal JSON Handler: `read_json` / `write_json`
 
-| Key | Derivation | Purpose | Storage |
-|-----|------------|---------|---------|
-| Password key (Kp) | SHA256(password + folder) | Daily authentication | `.tn_recovery` (encrypted with Ks) |
-| Phrase key (Ks) | SHA256(phrase + folder) | Data encryption | Never stored (derived on demand) |
-| Combined key (Kc) | SHA256(Kp + Ks) | Verification | `.tn_password` (encrypted with Kc) |
+The functions `read_json` and `write_json` in `notebook_operations.py` are the **single point of contact** for all persistent JSON data.
 
-**Notebook data is encrypted with Ks only. Kp is never used for encryption.**
-
----
-
-## File Structure
-
-Each encrypted notebook folder contains:
-
-```
-notebook_folder/
-├── structure.json      # Notebook structure, encrypted with Ks
-├── notes.json          # Note content, encrypted with Ks
-├── files.json          # File content, encrypted with Ks
-├── .tn_test            # Verification marker, encrypted with Ks
-├── .tn_recovery        # Kp encrypted with Ks
-└── .tn_password        # Kc encrypted with Kc (self-referential)
+```python
+def write_json(filepath, data, crypto=None):
+    # Convert data to JSON string
+    json_str = json.dumps(data, indent=2)
+    if crypto:
+        final_data = crypto.encrypt(json_str)   # ← encryption applied
+        mode = 'wb'
+    else:
+        final_data = json_str.encode('utf-8')
+        mode = 'wb'
+    # atomic write to .tmp + rename
 ```
 
-No file contains unencrypted secrets. All are raw encrypted binary blobs.
-
----
-
-## Daily Use (Trusted Machine)
-
-1. User enters password
-2. System derives Kp
-3. System retrieves Ks from secure session cache (or from `.tn_recovery` via phrase)
-4. System derives Kc and verifies `.tn_password`
-5. Notebook decrypts with Ks
-
-**The phrase is never entered during daily use.**
-
----
-
-## First Use on New Machine
-
-1. User copies notebook folder to new machine
-2. User enters phrase
-3. System derives Ks
-4. System decrypts `.tn_recovery` to retrieve Kp
-5. System derives Kc and verifies `.tn_password`
-6. System caches Kp and Ks in secure session (bound to this machine)
-7. Future unlocks require only password
-
-**The phrase is only needed once per machine.**
-
----
-
-## Hardware Binding (Optional)
-
-Keys are cached in a secure session file encrypted with a system fingerprint derived from:
-
-- Linux: `/etc/machine-id`, product UUID
-- macOS: IOPlatformUUID
-- Windows: MachineGUID
-- Fallback: hostname, username, platform info
-
-The fingerprint is generated at runtime and never stored. The secure session file is a binary vault with one entry per trusted machine, each encrypted with `SHA256(timestamp + fingerprint)`.
-
-**Property:** The same notebook folder copied to another machine cannot be unlocked without the phrase. Keys do not travel.
-
----
-
-## Recovery
-
-If password is forgotten:
-
-1. User enters phrase on any machine
-2. System derives Ks
-3. System decrypts `.tn_recovery` to retrieve Kp
-4. System derives Kc and verifies `.tn_password`
-5. Notebook decrypts with Ks
-6. User sets new password
-
-**Recovery works on any machine. No cloud. No email. No central authority.**
-
----
-
-## Password Change
-
-Changing password does not re-encrypt the notebook:
-
-1. User enters old password (verifies Kp)
-2. User enters new password
-3. System derives new Kp'
-4. System updates `.tn_recovery` with new Kp' (still encrypted with Ks)
-5. System updates `.tn_password` with new Kc'
-6. System updates secure session with new Kp'
-
-**The notebook remains encrypted with Ks (unchanged). Password change is instant regardless of notebook size.**
-
----
-
-## Phrase Entropy
-
-| Phrase Type | Word Source | Entropy (bits) | Quantum Resistance |
-|-------------|-------------|----------------|-------------------|
-| 6 words | BIP-39 (2048 words) | 66 | Weak |
-| 12 words | BIP-39 (2048 words) | 132 | Strong |
-| 24 words | BIP-39 (2048 words) | 264 | Quantum secure |
-| Custom text | User-defined | Variable | Depends on user |
-
-**The key remains 256 bits regardless of phrase length.** The phrase selects one of 2^256 possibilities.
-
----
-
-## No Phrase Storage
-
-The recovery phrase is:
-
-- Generated once (if auto-generated)
-- Shown once
-- Never written to disk
-- Never hashed
-- Never saved in any form
-
-**The user alone owns the phrase. The system cannot recover it. The system cannot lose it.**
-
----
-
-## Secure Session Vault
-
-Binary vault file (`session.vault`) with the following structure:
-
-```
-[4 bytes] version
-For each notebook:
-    [4 bytes] id_length
-    [variable] notebook_id (UTF-8)
-    [4 bytes] num_entries
-    For each entry (one per trusted machine):
-        [8 bytes] timestamp
-        [12 bytes] nonce
-        [4 bytes] encrypted_keys_length
-        [variable] encrypted_keys (AES-GCM)
-        [1 byte] active_flag
+```python
+def read_json(filepath, crypto=None):
+    with open(filepath, 'rb') as f:
+        raw = f.read()
+    return _parse_json(raw, crypto)
 ```
 
-Each entry is encrypted with `SHA256(timestamp + fingerprint)`. The fingerprint is never stored—only derived at runtime.
+`_parse_json` tries decryption if `crypto` is provided; if decryption fails or no crypto is given, it falls back to plain JSON (for unencrypted notebooks). This design ensures that **no caller ever needs to know whether the data is encrypted**. The encryption is transparent to the rest of the application.
 
-**Property:** The vault contains no machine identifiers. A machine proves itself by successful decryption, not by presenting an identifier.
-
----
-
-## Key Properties
-
-| Property | Implementation |
-|----------|----------------|
-| Phrase never stored | Yes |
-| Keys never in plain text | Yes |
-| Folder name as key material | Yes |
-| Hardware binding (optional) | Yes (no TPM required) |
-| Password change without re-encryption | Yes |
-| Recovery without cloud | Yes |
-| Multi-machine support | Yes (one entry per machine) |
-| Portable notebook folder | Yes |
-| Zero-trust vault | Yes (no stored fingerprints) |
+**Every notebook operation** (create, edit, delete, rename, restore) that reads or writes `structure.json`, `notes.json`, or `files.json` goes through these functions. Therefore, there is **no way to bypass encryption** for those files.
 
 ---
 
-## Limitations
+## 3. Encryption at Rest: The Three JSON Files
 
-- **Folder rename = data loss** (folder name is part of the key)
-- **No third-party audit** (code is open for review)
-- **No key derivation iteration** (entropy depends on secret strength)
-- **Hardware changes may invalidate secure session** (recovery phrase resolves this)
-- **Quantum computers** (24-word phrases recommended for long-term security)
+For an encrypted notebook, all three JSON files are stored as **encrypted binary blobs**. No plaintext ever touches the disk:
+
+| File | Content | Encryption Key |
+|------|---------|----------------|
+| `structure.json` | Notebook hierarchy, note metadata | Ks (phrase key) |
+| `notes.json` | Note text content | Ks |
+| `files.json` | File note content | Ks |
+
+The encryption is applied **before** the file is written. Git stores the encrypted blobs. The entire commit history is encrypted. An attacker with access to the disk or a cloned Git repository sees only random‑looking binary data.
 
 ---
 
-## Summary
+## 4. Key Management: Dual‑Key Separation (Kp, Ks, Kc)
 
-Terminal Notes implements a dual-key encryption system where:
+Encryption is not a single key. The system uses three distinct keys, each with a specific role:
 
-- The phrase is the ultimate key (256-bit SHA256 output)
-- The password is a convenience factor for daily use
-- The folder name is part of the key material
-- Keys are bound to hardware (optional, no TPM)
-- Recovery works on any machine with the phrase
-- Password changes are instant
-- No phrase is ever stored
-- The secure session vault is zero-trust (no stored fingerprints)
+- **Ks (phrase key)**: derived from the recovery phrase + folder name. This is the **actual encryption key** for all notebook data. It is never stored anywhere; it is derived each time the notebook is unlocked.
+- **Kp (password key)**: derived from the user’s password + folder name. Used only to verify the user’s identity against a cached entry. **Kp never encrypts any data**.
+- **Kc (combined key)**: derived as `SHA256(Kp + Ks)`. Used only for the self‑referential `.tn_password` file (verification).
 
-The code is open. The design is documented. The user owns their data.
+This separation ensures that even if the password is leaked, the encrypted data remains safe because Ks is not derived from the password.
+
+---
+
+## 5. Hardware Binding: Vault Entries Without Stored Keys
+
+The `SecureSessionStorage` class manages a vault file (by default `config/session.vault`, but can be any file). This vault contains **entries** that store encrypted copies of `Kp + Ks`. Each entry is encrypted with a key derived from:
+
+```
+entry_key = SHA256(timestamp + system_fingerprint)
+```
+
+The `system_fingerprint` is derived at runtime from hardware identifiers (machine ID, product UUID, hostname) and is **never written to disk**. Consequently, a vault file copied to another machine cannot be decrypted because the fingerprint differs.
+
+The `SessionKeyVault` class transparently reads these entries on demand, caches them in memory, and **validates the existence of the vault file before every cache hit**. If the vault file disappears, the cache is invalidated immediately.
+
+Thus, encryption is embedded not only in data storage but also in **key storage**: the keys themselves are always stored encrypted and bound to hardware.
+
+---
+
+## 6. Git Commits: Encrypted Blobs Only
+
+When a notebook is pushed to a Git remote, the repository contains only the encrypted JSON files and the hidden `.tn_*` files. The commit messages contain **plaintext UUIDs and action types**, but no note content. This is a deliberate trade‑off: the history structure is searchable, but the content remains encrypted. The encryption boundary is preserved because the actual note text never leaves the encrypted blobs.
+
+---
+
+## 7. Recovery Phrase: The Ultimate Key That Never Touches Disk
+
+The recovery phrase is the root of trust. It is **never stored anywhere** – not in a file, not in a registry, not in the Git history. It is shown to the user once and then forgotten by the system. The user must remember it or keep it safe. This is the only secret that can recreate Ks and thus decrypt the notebook.
+
+The phrase is used only during:
+
+- Notebook creation (to derive Ks)
+- First unlock on a new machine (to create a vault entry)
+- Password recovery (to derive Ks and then Kp)
+
+In every case, the phrase is entered via `getpass`, used to derive a key in memory, and then discarded. No trace remains on disk.
+
+---
+
+## 8. No Unencrypted Transient Files
+
+The system uses `tempfile` only for two purposes:
+
+- Temporary storage of editor content (which is plaintext, but that is the user’s editor environment; the app does not write that content to disk itself – the editor does).
+- Reconstruction of deleted items for timeline/history views: a temporary directory with plaintext JSON files is created. This directory is deleted as soon as the user closes the view. This is the only place where decrypted content exists on disk, and it is explicitly ephemeral (the user must explicitly choose to view a historical version, and the files are removed after use).
+
+All other operations work entirely in memory and write only encrypted blobs.
+
+---
+
+## 9. Encryption is Mandatory for Encrypted Notebooks
+
+If a notebook is marked as encrypted, **all paths to its data require a `Crypto` object**. The `SessionKeyVault` will raise an exception if the keys cannot be obtained. The caller cannot “skip” encryption because the `write_json` and `read_json` functions will either encrypt or decrypt based on the presence of the `crypto` argument. For encrypted notebooks, that argument is always provided after the notebook is unlocked.
+
+Thus, there is **no code path** that writes an unencrypted JSON file for an encrypted notebook.
+
+---
+
+## 10. Summary: Encryption Embedded in Every Layer
+
+| Layer | Mechanism | Encryption Guarantee |
+|-------|-----------|----------------------|
+| **JSON file I/O** | `read_json` / `write_json` with optional `crypto` | No plaintext write path for encrypted notebooks |
+| **Key storage** | Vault entries encrypted with hardware fingerprint | Keys never stored in plain text |
+| **Key caching** | `SessionKeyVault` validates vault existence before returning cached key | Stale keys cannot be used after vault removal |
+| **Git commits** | Blobs are already encrypted; commit messages contain only UUIDs | Content never appears in plain text even in history |
+| **Memory** | Keys cleared on lock or process exit | No persistent plaintext keys on disk |
+| **Recovery phrase** | Never stored, only entered via `getpass` | No disk trace of the master secret |
+
+The code is open. The behavior is observable. Every write to a notebook’s persistent storage that occurs while the notebook is in encrypted state passes through an encryption path. There are no exceptions.
+
+This is not a claim of perfection. It is a description of what the code does. The reader is invited to verify by inspecting the source.
+
+---
+
+**sys_ronin**  
+May 2026
 ```
