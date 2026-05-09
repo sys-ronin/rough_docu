@@ -44,7 +44,27 @@ I have 25 years of system level experience and over 13 years of professional exp
 
 ---
 
-## 4. O(1) Resolution Across Network Storage
+## 4. No Key Iteration (Why PBKDF2/Argon2 Are Not Needed)
+
+**What I was taught to expect:** Key derivation functions must use thousands or millions of iterations (PBKDF2, bcrypt, Argon2) to slow down brute‑force attacks. A single SHA256 pass is considered insecure for password‑based encryption.
+
+**What the code actually does:** The system derives keys with a single SHA256 pass. No iterations. No memory‑hard function. Yet the system is secure because the password is **not** the encryption key. The actual encryption key (Ks) is derived from the **recovery phrase**, which has high entropy (132–264 bits). The password only unlocks a locally cached key. An attacker who brute‑forces the password gains nothing – they cannot derive Ks without the phrase. The password is a convenience factor, not a security boundary.
+
+**Why this surprised me:** I did not know about PBKDF2. I just derived keys the simplest way I knew. Later I realized that the security industry assumes passwords are the weakest link. In my system, the password is **not** the link. The phrase is. And the phrase has enough entropy to make iterations unnecessary. The standard practice solves a problem my architecture does not have.
+
+---
+
+## 5. No Application Layer (Data as the Application Layer)
+
+**What I was taught to expect:** An application has a clear separation: the user interface, the business logic, the data layer. The data layer is passive. The application layer is active. The application acts upon the data.
+
+**What the code actually does:** The system has no distinct “application layer” in the traditional sense. The data **is** the application layer. The JSON files (registry, vault, notebook) contain not only data but also the pointers (UUIDs) that determine what the system does next. The application code is a small, stateless interpreter that reads these files and follows their pointers. There is no “business logic” separate from the data. The behavior emerges from the data itself.
+
+**Why this surprised me:** I did not design a layered architecture. I just stored everything in files that referenced each other via UUIDs. The code reads them in a fixed order. Only later did I realize that the traditional distinction between “code” and “data” had blurred. The data directs the execution. The code is just a follower.
+
+---
+
+## 6. O(1) Resolution Across Network Storage
 
 **What I was taught to expect:** Accessing data across a network introduces variable latency, and the complexity of locating data grows with the size of the system. Deterministic O(1) lookups are only possible with in‑memory hash tables or local disk indexes.
 
@@ -54,7 +74,7 @@ I have 25 years of system level experience and over 13 years of professional exp
 
 ---
 
-## 5. Resurrection via Parent Commit
+## 7. Resurrection via Parent Commit
 
 **What I was taught to expect:** When a file is deleted from a version control system, recovering it requires checking out an old revision, manually locating the file, and copying it. There is no “restore” button that works across renames and moves.
 
@@ -64,7 +84,7 @@ I have 25 years of system level experience and over 13 years of professional exp
 
 ---
 
-## 6. Stateless Trust
+## 8. Stateless Trust
 
 **What I was taught to expect:** Once a user authenticates, the system establishes a session that remains valid for some period. Trust is cached.
 
@@ -74,7 +94,7 @@ I have 25 years of system level experience and over 13 years of professional exp
 
 ---
 
-## 7. No Database
+## 9. No Database
 
 **What I was taught to expect:** Any application that needs to coordinate multiple data sources (a master registry, a vault registry, a vault file, notebook JSONs, Git commits) must use a database to maintain consistency and provide queries.
 
@@ -84,7 +104,7 @@ I have 25 years of system level experience and over 13 years of professional exp
 
 ---
 
-## 8. A Humble Realisation
+## 10. A Humble Realisation
 
 I did not set out to contradict textbooks. I did not set out to invent new patterns. I set out to build a writing tool that would not frustrate me, that would not lose my data, that would work offline, that I could carry on a USB drive, and that I could trust with my private notes.
 
@@ -96,9 +116,9 @@ I share this not to argue, but to document. The code is open. The behaviour is o
 
 ---
 
-## 9. Conclusion
+## 11. Conclusion
 
-The system described in this document works. It uses no central database, no transaction manager, no TPM, no background processes, and no long‑term caching of trust. Yet it performs secure, portable, hardware‑bound encryption; resurrects deleted items from Git history; coordinates across multiple independent storage locations; and runs on any machine with Python and Git.
+The system described in this document works. It uses no central database, no transaction manager, no TPM, no key iteration (because the password is not the encryption key), no background processes, and no long‑term caching of trust. The traditional “application layer” has dissolved into the data itself – the JSON files and UUID pointers determine the flow of execution. Yet it performs secure, portable, hardware‑bound encryption; resurrects deleted items from Git history; coordinates across multiple independent storage locations; and runs on any machine with Python and Git.
 
 These properties contradict many widely taught assumptions. I do not claim that the textbooks are wrong. I claim only that my system works differently, and that this difference may be worth studying for those who are curious.
 
