@@ -1,3 +1,8 @@
+# Terminal Notes Architecture Flowchart
+
+This diagram illustrates the relationships between Python modules, subsystems, and file artifacts in the Terminal Notes application.
+
+```mermaid
 flowchart TB
     subgraph UI["🖥️ UI Layer (terminal_notes_ui.py)"]
         direction LR
@@ -130,3 +135,19 @@ flowchart TB
     class QP,SSRC,CSP search
     class EC,RES,PI ui_help
     class MR,VR,VF,JSON,DOT,GIT_REPO artifact
+```
+
+## Description
+
+The chart above maps the complete architecture of **Terminal Notes**, a terminal‑based encrypted note‑taking system. It shows:
+
+- **UI Layer** – handles user interaction, screens, command routing, and remote notebook management.
+- **Core Layer** – central `NoteManager` orchestrates everything; maintains master registry, navigation stack, and data models.
+- **Operations Layer** – CRUD operations, password/vault changes, deletion, and restoration of items.
+- **Encryption Subsystem** – dual‑key AES‑GCM encryption, binary vaults (`.vault`), system‑fingerprint key storage, and in‑RAM key cache.
+- **Git Subsystem** – commits every change, mines history for deleted/renamed items, provides timeline versions, and permanently erases data via `git‑filter‑repo`.
+- **Search Subsystem** – query parser that supports powerful filters (`created*`, `deleted*`, `in*`, `g*`, `date*`, etc.), and searches both current and historical items.
+- **UI Helpers** – editor autosave configuration, recovery system, and notebook importer.
+- **Artifacts** – master registry (`notebooks_registry.json`), vault registry (`vaults_registry.json`), binary vault files, notebook JSON files, encryption marker files, and Git directories.
+
+Arrows indicate primary data/control flow. For example, `NoteManager` writes to the master registry, calls `NotebookOperations` for CRUD, uses `Crypto` for encryption, and interacts with `GitManager` for commits. `ComprehensiveSearch` uses `GitHistoryMiner` and `TimelineEngine` to query Git history. `Eraser` uses `git_filter_repo` to remove UUIDs permanently. The layout follows a clean separation of concerns, making the system modular and maintainable.
