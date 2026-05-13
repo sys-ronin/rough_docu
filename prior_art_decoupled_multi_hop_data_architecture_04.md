@@ -1,6 +1,6 @@
-# Prior Art Disclosure: Decentralised, Multi‑Hop Data Mesh with Pluggable Versioning, Encryption, and Authentication
+# Prior Art Disclosure: Stateless, Decentralised UUID Mesh Architecture
 
-## A Technical Description of a Stateless Resolution Layer for Heterogeneous, Versioned, Encrypted, and Secured Data
+## A Technical Description of a Fully Decoupled, O(1), Offline‑Capable Distributed Data System
 
 ---
 
@@ -13,280 +13,224 @@
 
 ## Summary
 
-This document describes a **pure resolution layer** for distributed data systems. The layer does not store data, does not enforce versioning policies, does not perform encryption, and does not implement authentication. Instead, it resolves **UUIDs to storage locations** (or to other UUIDs). All other concerns – data format, versioning, encryption, authorisation – are delegated to the resolved endpoints.
+This document describes a **stateless, decentralised data architecture** built on UUID‑based resolution chains. The architecture decouples data, metadata, security policy, and administrative control into independent layers, each with its own UUID space and resolution registry. All operations – data access, policy verification, key retrieval, administrative updates – are performed as **one‑time, stateless requests** with **O(1) complexity**. No component requires background threads, persistent connections, consensus protocols, or always‑on daemons. The system operates fully offline and scales horizontally without coordination overhead.
 
-The architecture is **universal** in the following sense:
-
-- **Any storage backend** can be used (file system, object store, database, custom API).
-- **Any versioning mechanism** can be used (Git, SVN, Mercurial, custom rolling hash chains).
-- **Any encryption scheme** can be used (AES, ChaCha20, hardware token, none).
-- **Any authentication model** can be used (centralised, decentralised, per‑hop, offline capabilities).
-
-The resolution layer is **stateless** and **offline‑capable**. It does not require a central coordinator, background threads, or persistent connections. Multiple operations can run in parallel without locking.
-
-The concepts disclosed here are **not tied to any specific implementation**. They describe a logical pattern that can be realised in any programming environment that supports key‑value lookups and concurrency.
+The architecture is **not theoretical**. It is implemented, tested, and used daily. The purpose of this disclosure is to establish prior art for the concepts described herein.
 
 ---
 
 ## Table of Contents
 
-1. Core Principles of the Resolution Layer
-2. Pluggable Versioning
-3. Pluggable Encryption
-4. Pluggable Authentication and Authorisation
-5. Parallel Operations Without Locking
-6. Offline Capability
-7. Relationship to Previous Documents
+1. Core Principles
+2. Layered Independence: Data, Metadata, Policy, Administration
+3. Hops as Independent, Stateless Resolvers
+4. O(1) Complexity and Idle Systems
+5. Parallel Operations Without Coordination
+6. Multi‑Type UUID Spaces
+7. Comparison with Existing Systems
 8. Prior Art Assertion
 9. Conclusion
 
 ---
 
-## 1. Core Principles of the Resolution Layer
+## 1. Core Principles
 
-The resolution layer does **one thing** and **only one thing**: it answers the query *“Given a UUID, where is the associated data (or the next UUID)?”* It does not care what the data is, how it is stored, how it is versioned, or who is allowed to access it.
+### 1.1 UUID as Permanent Identifier
 
-### 1.1 Components
+Every resource – data record, encryption key, policy document, administrative configuration – receives a UUID at creation. The UUID never changes. It serves as a stable, location‑independent identifier that can be stored in other records to establish relationships.
 
-| Component | Role | Implementation Freedom |
-|-----------|------|------------------------|
-| **UUID** | Permanent identifier for a data record, a version, a registry, or any other entity. | Any 128‑bit unique identifier (RFC 4122 or custom). |
-| **Registry** | Maps a UUID to a storage location (URL, path, key) or to another UUID. | Can be a JSON file, a database table, a key‑value store, or any lookup table. |
-| **Resolver** | Client‑side logic that follows UUID chains. | Can be implemented in any language, with any concurrency model. |
-| **Endpoint** | The resolved location that holds the actual data. | Can be a file server, an object store, a database, a custom API, or any reachable service. |
+### 1.2 Registry as Routing Table
 
-### 1.2 Resolution Chain
+A **registry** is a mapping from a UUID to either:
 
-The resolver performs a sequence of lookups:
+- A storage location (path, URL, database key), or
+- Another UUID (a “hop” to be resolved next).
 
-```
-Root identifier (user ID, system fingerprint, etc.)
-    ↓ (lookup in root registry)
-UUID A
-    ↓ (lookup in node registry)
-Location L (or UUID B)
-    ↓ (if location)
-Fetch data from L
-    ↓ (if data contains embedded UUIDs)
-Repeat for each embedded UUID (parallel or sequential)
-```
+Registries are ordinary data artifacts (JSON files, database tables, key‑value stores). There is no central registry; multiple registries can coexist and be chained.
 
-Each lookup is **O(1)** (hash table or direct key access). The length of the chain is determined by the application, not by the total number of records.
+### 1.3 Deterministic, O(1) Resolution
 
----
+To access a resource, the system performs a deterministic sequence of lookup steps:
 
-## 2. Pluggable Versioning
+1. Look up UUID `U` in a registry → obtain either a location `L` or another UUID `V`.
+2. If `L` is a location, fetch the resource from `L`.
+3. If `V` is a UUID, set `U = V` and repeat.
 
-The resolution layer does **not** provide built‑in versioning. Instead, versioning is implemented by the endpoints or by auxiliary registries.
+Each registry lookup is O(1) (hash table). The chain length is fixed per operation and does not grow with the total number of resources.
 
-### 2.1 Versioning Using a Simple Pointer Chain
+### 1.4 Stateless, One‑Time Requests
 
-A versioned data item is identified by a **stable content UUID** (e.g., `content‑doc‑123`). Each version is identified by a **version‑specific UUID** (e.g., `version‑v3`). The chain of versions is stored as a linked list:
+All operations – data access, policy verification, key retrieval, administrative updates – are performed as **single, independent requests**. No session, no persistent connection, no shared state. Each request carries all necessary authentication and authorisation evidence (signed JWT, pre‑signed URL, client certificate). The recipient verifies the credential locally and responds.
 
-- Version `V1` points to `null` (first version).
-- Version `V2` contains a pointer to `V1`.
-- Version `V3` contains a pointer to `V2`.
-- The current version (e.g., `V3`) is registered in the registry as the “live” UUID for `content‑doc‑123`.
+### 1.5 No Background Threads, No Always‑On Daemons
 
-The pointer can be stored:
-
-- In the metadata of the versioned object itself (e.g., a JSON field `previous_version_uuid`).
-- In a separate “version registry” that maps a version UUID to its predecessor.
-- As a cryptographic hash pointer for tamper‑proof history (e.g., `V2` contains a hash of `V1`).
-
-**Crucially, the resolution layer does not care which method is used.** It only needs to resolve the UUID of the current version. To retrieve an older version, the client follows the pointer chain (which may involve additional registry lookups or direct reads from the versioned objects).
-
-### 2.2 Example: Versioning with Git
-
-- Git commits already have UUID‑like hashes (SHA‑1). The resolution layer can treat a commit hash as a UUID.
-- A registry maps a logical branch name (e.g., `main`) to the current commit hash.
-- To retrieve an older commit, the client follows the parent pointers in the Git object graph. The resolution layer is not involved.
-
-**This works because Git’s pointers are just UUIDs.** The resolution layer does not need to understand Git; it only needs to resolve a commit hash to a location (e.g., a Git server URL).
-
-### 2.3 Example: Versioning with a Custom Rolling Hash Chain
-
-- Each version contains a cryptographic hash of the previous version.
-- The registry maps the current version UUID to its storage location.
-- To retrieve a historical version, the client fetches the current version, extracts the previous version’s UUID (or hash), resolves that UUID through the registry, and repeats.
-
-The resolution layer treats the pointer inside the payload as just another UUID. It does not need to know that the pointer is a hash or that it belongs to a rolling chain.
-
-**Conclusion:** The resolution layer is **versioning‑agnostic**. Any versioning system that can express pointers as UUIDs can be used.
+Components do not run background threads. They do not maintain heartbeats, keep‑alive connections, or background caches. A component can be completely idle (not even running) until a request arrives. Activation is the request itself – O(1) time to resolve, O(1) time to fetch.
 
 ---
 
-## 3. Pluggable Encryption
+## 2. Layered Independence: Data, Metadata, Policy, Administration
 
-The resolution layer does **not** provide encryption. It resolves a UUID to a location; the data at that location may be encrypted or not. The client is responsible for decryption after fetching the data.
+Traditional systems tightly couple data, metadata, security policy, and administrative control. This architecture separates them into independent layers, each with its own UUID space and its own resolution registry.
 
-### 3.1 Encryption Policies Per Hop
+| Layer | What It Contains | UUID Space | Resolution Registry |
+|-------|------------------|------------|---------------------|
+| **Data layer** | The actual content (encrypted or plain) | Data UUIDs | Data registry (maps UUID → storage location) |
+| **Metadata layer** | Descriptive attributes, relationships, lineage | Metadata UUIDs | Metadata registry (maps UUID → metadata record) |
+| **Security policy layer** | Access control rules, capability definitions | Policy UUIDs | Policy registry (maps UUID → policy document) |
+| **Key layer** | Encryption keys (DEKs, master keys) | Key UUIDs | Key registry (maps UUID → key storage location) |
+| **Administrative layer** | Configuration, key rotation schedules, audit rules | Admin UUIDs | Admin registry (maps UUID → admin record) |
 
-Different endpoints can use different encryption schemes:
+Each layer can be:
 
-| Endpoint Type | Encryption Scheme | Client Action |
-|---------------|-------------------|----------------|
-| Public file server | None | Read plaintext |
-| S3 bucket | AES‑256 server‑side encryption | Read plaintext (S3 decrypts) |
-| Encrypted blob store | Client‑side AES‑GCM | Decrypt after fetch |
-| Hardware token | Key stored in HSM | Call HSM to decrypt |
-| Vault (as in Terminal Notes) | Hardware‑bound keys | Decrypt using fingerprint |
+- **Stored independently** (different physical locations, different storage systems).
+- **Managed by different authorities** (one team manages data, another manages policies).
+- **Updated without affecting other layers** (rotating a policy key does not require touching data).
+- **Resolved in O(1) time** via its own registry.
 
-The resolution layer does not need to know which scheme is used. It simply returns the location. The client (or the endpoint) handles decryption.
+### 2.1 Encryption as Independent Layer
 
-### 3.2 Key Management Decoupled from Resolution
+- Data is stored encrypted, using a data encryption key (DEK) identified by a UUID.
+- The DEK UUID resolves to a location where the DEK is stored (key vault, HSM, encrypted file).
+- The master key is another UUID, resolved through a separate registry.
+- Each hop can be managed by a different authority, with its own authentication.
 
-Keys can be stored:
+**Example (three hops):**
 
-- In a separate registry (mapping data UUID → key UUID → key location).
-- In the same registry (as an extra field).
-- In a dedicated key server (resolved via another UUID chain).
+1. Resolve data UUID → obtain encrypted blob location.
+2. Resolve DEK UUID → obtain encrypted DEK location.
+3. Resolve master key UUID → obtain master key (from a hardware token).
 
-Because keys are themselves just data identified by UUIDs, key management can be expressed as **another resolution chain** – completely independent of the data chain.
+All steps are O(1). The data cannot be decrypted without successfully resolving all three hops.
 
-**Example:** A data record UUID resolves to an encrypted blob. The client then resolves a separate key UUID (stored in the blob’s metadata) to obtain a decryption key. The two chains run in parallel.
+### 2.2 Security Policy as Resolvable Resource
 
-**Conclusion:** The resolution layer is **encryption‑agnostic**. Any encryption scheme that can be expressed as a client‑side operation after resolution can be used.
+- Access control rules are stored as policy documents, each identified by a policy UUID.
+- A user’s capability token contains policy UUIDs, not the rules themselves.
+- The system resolves each policy UUID to fetch the rules (cached, with TTL).
+- Policies can be updated by writing a new policy document at the same UUID (or a new UUID with updated metadata).
 
----
-
-## 4. Pluggable Authentication and Authorisation
-
-Authentication and authorisation are **not** implemented by the resolution layer. Instead, each endpoint enforces its own policy using self‑validating credentials (signed JWTs, pre‑signed URLs, client certificates).
-
-### 4.1 Per‑Hop Authentication
-
-A request to resolve a UUID from a registry may be authenticated differently from a request to fetch data from an object store.
-
-| Hop | Endpoint | Authentication Method |
-|-----|----------|----------------------|
-| 1 | Registry A (public) | None (open lookup) |
-| 2 | Registry B (private) | Signed JWT (valid for 1 hour) |
-| 3 | S3 bucket | Pre‑signed URL (valid for 10 minutes) |
-| 4 | Database | Client certificate |
-
-The client accumulates the necessary credentials as it traverses the chain. Each credential is self‑validating; the endpoint does not need to call back to a central authority.
-
-### 4.2 Centralised vs. Decentralised Authority
-
-- **Centralised:** A single authority signs all credentials. All endpoints trust the same public key.
-- **Decentralised:** Each endpoint maintains its own trust anchors. Cross‑endpoint delegation uses signed capabilities (e.g., Registry A issues a signed assertion that the client may access Registry B).
-
-Both models work without real‑time connectivity.
-
-### 4.3 Offline Authentication
-
-Because credentials are self‑validating, the entire authentication and authorisation process can be performed **offline**, provided the client has:
-
-- The necessary signed tokens (JWT).
-- The necessary pre‑signed URLs.
-- The required public keys to verify signatures.
-
-The resolution layer does not need to be online. Cached registry files and pre‑signed credentials are sufficient.
-
-**Conclusion:** The resolution layer is **authentication‑agnostic**. Any authentication model that can be expressed as self‑validating credentials can be used.
+**Result:** Policy changes propagate without touching data or restarting services. The resolution mechanism is identical to data access.
 
 ---
 
-## 5. Parallel Operations Without Locking
+## 3. Hops as Independent, Stateless Resolvers
 
-Because the resolution layer is stateless and does not maintain locks or transactions, multiple operations can run in **true parallelism** without interfering.
+A **hop** is any component that takes a UUID and returns either a storage location or another UUID. Hops do not need to know about each other. They do not maintain state.
 
-### 5.1 One Client, Multiple Parallel Requests
+| Type of Hop | Input | Output | Example |
+|-------------|-------|--------|---------|
+| **Data locator** | Data UUID | Storage URL | `abc-123` → `s3://bucket/data/abc-123` |
+| **Key locator** | Key UUID | Key storage location | `key-456` → `hsm://keys/key-456` |
+| **Policy locator** | Policy UUID | Policy document | `pol-789` → `https://policies.example.com/789` |
+| **Delegation hop** | Capability UUID | Another UUID + signed token | `cap-111` → `{next_uuid, signed_token}` |
 
-A client can spawn multiple threads or async tasks. Each task resolves its own UUID chain independently. There is no shared state to lock.
+Hops can be chained arbitrarily. Each hop adds one O(1) lookup.
 
-**Example:** A dashboard needs to fetch ten independent widgets. The client starts ten parallel resolution chains. Each chain resolves its own UUIDs, fetches its own data, and returns. No locking is required.
-
-### 5.2 Multiple Clients, Same Registry
-
-The registry serves each request independently. Because the registry does not maintain client‑specific state, there is no session affinity requirement. A load balancer can distribute requests arbitrarily.
-
-### 5.3 Read‑While‑Write
-
-If the registry is updated while a client is reading, the client may see the old version (if it uses a cached copy) or the new version (if it re‑resolves). The mesh does not guarantee linearisable consistency. This is a deliberate trade‑off for performance and offline capability.
-
-### 5.4 Write Conflicts
-
-Write conflicts (e.g., two clients updating the same registry entry) must be resolved by the registry implementation. Typical strategies include:
-
-- **Last‑write‑wins** (simplest, used by file‑based registries with atomic rename).
-- **Compare‑and‑swap** (if the registry supports conditional updates).
-- **Application‑level coordination** (e.g., a separate lock registry – which is itself just another UUID chain).
-
-The resolution layer does not impose a conflict resolution policy.
-
-**Conclusion:** The resolution layer is **concurrency‑agnostic**. It provides no locking, but it does not prevent applications from implementing their own concurrency control.
+**Key property:** Hops are stateless. They do not remember previous requests. They do not maintain sessions. They simply respond to the current request using their local registry (which may be a file, a database, or a cached remote resource). This makes them horizontally scalable and fault‑tolerant.
 
 ---
 
-## 6. Offline Capability
+## 4. O(1) Complexity and Idle Systems
 
-The resolution layer can operate **fully offline** if the necessary data and credentials are pre‑fetched.
+Traditional distributed systems keep components **always active** – listening for requests, maintaining connections, running health checks, updating caches. In this architecture, components can be **completely idle** (not even running) until a request arrives.
 
-### 6.1 Offline Resolution
+| Component | Idle State | Activation |
+|-----------|------------|------------|
+| **Registry** | A JSON file on disk (or static web page) | Read on demand (file I/O or HTTP GET) |
+| **Data store** | An S3 bucket or USB drive | Accessed via pre‑signed URL or file read |
+| **Key vault** | An encrypted file on a network share | Fetched when key UUID is resolved |
+| **Policy store** | A static file on a web server | Fetched when policy UUID is resolved |
 
-A client can:
+**No component needs to be “running” in the sense of a long‑lived process.** A serverless function, a static file server, or even a USB drive can serve as a registry or data store. The “activation” is the request itself – O(1) time to resolve, O(1) time to fetch.
 
-- Pre‑fetch registry files (e.g., download `registry.json`).
-- Pre‑fetch signed capability tokens (JWT) for the UUIDs it expects to access.
-- Pre‑fetch pre‑signed URLs for the data objects it expects to retrieve.
-
-With these artifacts, the client can resolve UUIDs and fetch data without any network connectivity.
-
-### 6.2 Offline Version Reconstruction
-
-If a client has pre‑fetched a version chain (e.g., the current version and all its predecessors), it can reconstruct historical versions offline. The version pointers are just UUIDs; the client resolves them from the pre‑fetched registry or from the version objects themselves.
-
-### 6.3 Offline Authentication
-
-Self‑validating credentials are verified locally using pre‑distributed public keys. No network call is required.
-
-**Conclusion:** The resolution layer is **offline‑capable by design**. It does not assume network availability.
+This is the extreme end of decoupling: systems are not just stateless; they are **potentially offline** until needed.
 
 ---
 
-## 7. Relationship to Previous Documents
+## 5. Parallel Operations Without Coordination
 
-This document is the **fourth** in a series describing the UUID Mesh architecture:
+Because each resolution is independent and O(1), multiple operations can run **in parallel without a central coordinator**.
 
-1. **UUID‑Based Routing for Decoupled Data Architectures** – introduced the core resolution layer, registries, and multi‑hop chains.
-2. **Parallel UUID Chain Resolution for Multi‑Hop Data Mesh** – added concurrent resolution, fan‑out, and cross‑source parallelism.
-3. **Decoupled, Secured, No‑Realtime Possibilities** – added self‑validating credentials, offline authentication, and stateless management.
-4. **This document** – generalises the architecture to pluggable versioning, encryption, and authentication, and clarifies that the resolution layer does **nothing but resolve UUIDs**.
+| Operation Type | Example | Impact on Other Operations |
+|----------------|---------|---------------------------|
+| **User data read** | Resolve UUID `abc`, fetch data | None – independent |
+| **User data write** | Resolve UUID `abc`, write new version | None – atomic write, no lock |
+| **Admin: update registry** | Add new mapping to registry | Next lookup sees new mapping. No interruption. |
+| **Admin: revoke capability** | Append to revocation list | Next request uses updated list. No sessions to terminate. |
+| **Admin: rotate key** | Write new key to key registry | Decryption uses new key after cache TTL. No downtime. |
 
-Together, these documents describe a complete, general‑purpose, decentralised data access pattern that is **not tied to any specific storage, versioning, encryption, or authentication technology**.
+**There is no locking, no transaction coordinator, no background thread.** Administrative actions affect only future resolutions, not ongoing ones.
+
+A single user operation may require resolving UUIDs from multiple types simultaneously:
+
+1. Resolve document UUID (data layer) → fetch encrypted document.
+2. In parallel, resolve policy UUID (policy layer) → fetch access rules.
+3. In parallel, resolve key UUID (key layer) → fetch DEK.
+4. Verify policy, decrypt document.
+
+All resolutions are O(1) and independent. No coordinator is required.
+
+---
+
+## 6. Multi‑Type UUID Spaces
+
+Different types of resources can use **different UUID prefixes or separate UUID spaces**. This allows:
+
+- **Type‑specific resolution** (e.g., data UUIDs vs. key UUIDs vs. policy UUIDs).
+- **Separate registries** for each type, managed by different authorities.
+- **Different security policies** for different types.
+
+| Data Type | UUID Prefix | Registry Owner | Authentication Required |
+|-----------|-------------|----------------|--------------------------|
+| User documents | `doc_*` | Central IT | JWT from corporate IdP |
+| Encryption keys | `key_*` | Security team | Hardware token (YubiKey) |
+| Access policies | `pol_*` | Compliance team | Mutual TLS (client certificate) |
+| Audit logs | `audit_*` | Auditor | Pre‑signed URL (time‑limited) |
+
+The resolution mechanism is identical for all types. The only difference is the registry and the authentication method.
+
+---
+
+## 7. Comparison with Existing Systems
+
+The following table summarises how this architecture addresses the limitations of current systems.
+
+| **System / Approach** | **Core Limitations** | **How UUID Mesh Provides a Better Alternative** |
+|-----------------------|----------------------|--------------------------------------------------|
+| **Distributed Databases** (Spanner, CockroachDB) | Require consensus (Paxos/Raft), adding latency and complexity. | Eliminates global consensus. Operations are independent, O(1) local lookups. |
+| **Centralised Databases** (Oracle, MySQL) | Operational costs scale linearly; licensing and scaling are expensive. | Drastically reduces operational overhead. Stateless design runs on minimal hardware. |
+| **Data Mesh** | Can lead to duplicated efforts and central bottlenecks. | Provides a lightweight, low‑friction coordination layer. No central orchestration. |
+| **Distributed Key‑Value Stores** (Cassandra, DynamoDB) | Lookup overhead scales with node count; high memory requirements. | O(1) deterministic resolution. Registry entries are small and efficient. |
+| **Blockchain for Traceability** | High computational costs, latency, poor interoperability. | Stateless, verifiable chain of custody. No global consensus. Highly scalable, low‑cost. |
+| **Event Sourcing / Brokers** (Kafka) | Complex, always‑on infrastructure; costly to scale. | Append‑only UUID‑chained event log. No central broker. “Replay” is a simple read operation. |
+| **Content‑Addressed Storage** (IPFS) | Routing and persistence challenges; naming and governance issues. | Resolves data by location, not hash. UUIDs provide mutable, durable, resolvable pointers. |
+| **Distributed Authentication** (OAuth2, LDAP) | Expensive to scale; central federation creates bottlenecks. | Self‑validating, offline‑capable tokens. Local O(1) verification, no per‑request round trips. |
 
 ---
 
 ## 8. Prior Art Assertion
 
-This document establishes prior art for the following concepts:
+This document establishes prior art for the following concepts, all of which are disclosed in public, timestamped documents (repository and associated materials) as of May 2026:
 
-1. **A pure resolution layer** that separates UUID‑to‑location mapping from all other concerns (storage, versioning, encryption, authentication).
-2. **Pluggable versioning** – the ability to use any versioning mechanism (including custom rolling hash chains) by storing version pointers as UUIDs.
-3. **Pluggable encryption** – the ability to use any encryption scheme (or none) per resolved endpoint.
-4. **Pluggable authentication** – the ability to use centralised, decentralised, or per‑hop authentication with self‑validating credentials.
-5. **Parallel operations without locking** – multiple independent resolution chains running concurrently without shared state.
-6. **Offline capability** – full resolution, version reconstruction, and authentication using cached artifacts and pre‑signed credentials.
-7. **Delegation of all non‑resolution concerns** to resolved endpoints, making the resolution layer minimal and universally applicable.
+1. **Layered independence** – decoupling data, metadata, policy, keys, and administration into separate UUID‑addressable layers.
+2. **Hops as independent, stateless resolvers** – components that map UUIDs to locations or other UUIDs without maintaining state.
+3. **O(1) deterministic resolution** – fixed‑length resolution chains using dictionary lookups.
+4. **Idle systems activated on demand** – components that remain completely offline until accessed via O(1) resolution.
+5. **Parallel operations without coordination** – independent UUID resolutions running concurrently without locks or coordinators.
+6. **Multi‑type UUID spaces** – different UUID prefixes for different data types, each with its own registry and security policy.
+7. **Encryption as a resolvable layer** – keys identified by UUIDs, resolved through independent registries.
+8. **Policy as a resolvable resource** – access rules stored as UUID‑addressable documents.
+9. **Stateless administrative operations** – configuration, key rotation, and revocation as one‑time requests, same as data access.
 
-All concepts are disclosed in public, timestamped documents as of May 2026. They constitute prior art under 35 U.S.C. § 102(a)(1) and EPC Article 54(2). No party may obtain valid patent claims covering any concept disclosed herein.
+The concepts disclosed herein are now part of the public domain. No party may obtain valid patent claims covering any concept described in this document.
 
 ---
 
 ## 9. Conclusion
 
-The resolution layer described in this document is **universal** in the sense that it does not impose any constraints on:
+This document describes a **stateless, decentralised UUID mesh architecture** that separates data, metadata, policy, keys, and administration into independent layers. Each layer has its own UUID space and resolution registry. All operations are O(1), one‑time, stateless requests. No component requires background threads, persistent connections, consensus protocols, or always‑on daemons.
 
-- **Storage backend** – file system, object store, database, custom API.
-- **Versioning mechanism** – Git, SVN, Mercurial, custom rolling hash chains.
-- **Encryption scheme** – AES, ChaCha20, hardware token, none.
-- **Authentication model** – centralised, decentralised, per‑hop, offline.
-
-The layer does **one thing** and **only one thing**: it resolves UUIDs to storage locations (or to other UUIDs). All other concerns are delegated to the resolved endpoints. This separation of concerns makes the architecture **extremely flexible, portable, and adaptable** to a wide range of use cases.
-
-The document is not a proposal. It is a description of a working, implemented system. The code is open. The behaviour is observable.
+The architecture is **not theoretical**. It is implemented, tested, and used daily. The code is open. The behaviour is observable.
 
 This disclosure is made in the public interest. It may be cited in any patent examination, litigation, or prior art search.
 
@@ -296,4 +240,3 @@ This disclosure is made in the public interest. It may be cited in any patent ex
 May 2026  
 sys-ronin@protonmail.com  
 github.com/sys-ronin/terminal-notes
-```
